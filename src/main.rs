@@ -49,9 +49,7 @@ fn main() {
         }
     }
 
-    for (name, hostdata) in hosts {
-        println!("{}: {:#?}", name, hostdata);
-    }
+    println!("{:#?}", hosts)
 }
 
 fn file_to_string(filepath: &Path) -> Result<String> {
