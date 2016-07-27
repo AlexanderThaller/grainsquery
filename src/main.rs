@@ -33,6 +33,7 @@ struct Host {
     #[serde(default)]
     roles: Vec<String>,
     saltversion: String,
+    productname: String,
 }
 
 fn main() {
