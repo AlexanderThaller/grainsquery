@@ -4,6 +4,13 @@
 extern crate serde;
 extern crate serde_yaml;
 extern crate glob;
+extern crate env_logger;
+
+#[macro_use]
+extern crate log;
+
+#[macro_use]
+extern crate clap;
 
 use std::io::prelude::*;
 use std::fs::File;
@@ -14,6 +21,7 @@ use std::vec::Vec;
 use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 use glob::glob;
+use clap::App;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Host {
@@ -37,9 +45,23 @@ struct Host {
 }
 
 fn main() {
+    env_logger::init().unwrap();
+
+    let yaml = load_yaml!("cli.yml");
+    let matches = App::from_yaml(yaml).get_matches();
+    debug!("matches: {:#?}", matches);
+
+    let folder = matches.value_of("folder").unwrap_or("grains");
+    debug!("folder: {:#?}", folder);
+
+    run(folder)
+}
+
+fn run(folder: &str) {
     let hosts: &mut BTreeMap<String, Host> = &mut BTreeMap::new();
 
-    for entry in glob("./grains/*.yaml").expect("Failed to read glob pattern") {
+    let files = format!("./{}/*.yaml", folder);
+    for entry in glob(files.as_str()).expect("Failed to read glob pattern") {
         let host = match entry {
             Ok(path) => host_from_file(path.as_path()),
             Err(_) => BTreeMap::new(),
