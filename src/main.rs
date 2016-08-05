@@ -44,6 +44,29 @@ struct Host {
     productname: String,
 }
 
+#[derive(Debug)]
+struct Filter {
+    environment: String,
+    id: String,
+    id_inverse: bool,
+    os_family: String,
+    productname: String,
+    realm: String,
+}
+
+impl Filter {
+    pub fn new() -> Filter {
+        Filter {
+            environment: String::new(),
+            id: String::new(),
+            id_inverse: false,
+            os_family: String::new(),
+            productname: String::new(),
+            realm: String::new(),
+        }
+    }
+}
+
 fn main() {
     env_logger::init().unwrap();
 
@@ -52,13 +75,24 @@ fn main() {
     debug!("matches: {:#?}", matches);
 
     let folder = matches.value_of("folder").unwrap_or("grains");
-    debug!("folder: {:#?}", folder);
 
-    run(folder)
+    let filter = Filter {
+        environment: String::from(matches.value_of("environment").unwrap_or("")),
+        ..Filter::new()
+    };
+
+    debug!("folder: {:#?}", folder);
+    debug!("filter: {:#?}", filter);
+
+    let hosts: BTreeMap<_, _> = parse_hosts_from_folder(folder).into_iter()
+        .filter(|&(_, host)| host.environment != filter.environment)
+        .collect();
+
+    println!("{:#?}", hosts)
 }
 
-fn run(folder: &str) {
-    let hosts: &mut BTreeMap<String, Host> = &mut BTreeMap::new();
+fn parse_hosts_from_folder(folder: &str) -> BTreeMap<String, Host> {
+    let mut hosts: BTreeMap<String, Host> = BTreeMap::new();
 
     let files = format!("./{}/*.yaml", folder);
     for entry in glob(files.as_str()).expect("Failed to read glob pattern") {
@@ -72,7 +106,7 @@ fn run(folder: &str) {
         }
     }
 
-    println!("{:#?}", hosts)
+    return hosts
 }
 
 fn file_to_string(filepath: &Path) -> Result<String> {

@@ -7,7 +7,14 @@ settings:
   - ColorAuto
 args:
     - folder:
-        help: the folder from which to read the grain files
-        long: grains
+        help: folder from which to read the grain files
+        long: folder
+        short: f
+        takes_value: true
+        global: true
+    - environment:
+        help: filter out all minions that are not in the given environment
+        long: environment
+        short: e
         takes_value: true
         global: true
