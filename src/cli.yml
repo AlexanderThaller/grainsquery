@@ -51,13 +51,19 @@ args:
     - realm:
         help: filter out all minions that are not in the given realm
         long: filter.realm
-        short: r
+        short: m
         takes_value: true
         global: true
     - saltversion:
         help: filter out all minions that are not using the given salt version
         long: filter.saltversion
         short: s
+        takes_value: true
+        global: true
+    - roles:
+        help: filter out all minions which don't have the given role (multiple values possible)
+        long: filter.roles
+        short: r
         takes_value: true
         global: true
     - noenvironment:
