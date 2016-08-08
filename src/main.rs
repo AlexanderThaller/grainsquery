@@ -22,6 +22,7 @@ use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 use glob::glob;
 use clap::App;
+use std::str::FromStr;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Host {
@@ -47,11 +48,12 @@ struct Host {
 #[derive(Debug)]
 struct Filter {
     environment: String,
-    id: String,
     id_inverse: bool,
+    id: String,
     os_family: String,
     productname: String,
     realm: String,
+    saltversion: String,
 }
 
 impl Filter {
@@ -63,6 +65,7 @@ impl Filter {
             os_family: String::new(),
             productname: String::new(),
             realm: String::new(),
+            saltversion: String::new(),
         }
     }
 }
@@ -78,17 +81,47 @@ fn main() {
 
     let filter = Filter {
         environment: String::from(matches.value_of("environment").unwrap_or("")),
+        id: String::from(matches.value_of("id").unwrap_or("")),
+        id_inverse: matches.value_of("id_inverse").unwrap_or("false").parse().unwrap_or(false),
+        os_family: String::from(matches.value_of("os_family").unwrap_or("")),
+        productname: String::from(matches.value_of("productname").unwrap_or("")),
+        realm: String::from(matches.value_of("realm").unwrap_or("")),
+        saltversion: String::from(matches.value_of("saltversion").unwrap_or("")),
         ..Filter::new()
     };
 
     debug!("folder: {:#?}", folder);
     debug!("filter: {:#?}", filter);
 
-    let hosts: BTreeMap<_, _> = parse_hosts_from_folder(folder).into_iter()
-        .filter(|&(_, host)| host.environment != filter.environment)
+    let hosts = parse_hosts_from_folder(folder);
+    let hosts: BTreeMap<_, _> = hosts.iter()
+        .filter(|&(_, host)| filter_host(host, &filter))
         .collect();
 
     println!("{:#?}", hosts)
+}
+
+fn filter_host(host: &Host, filter: &Filter) -> bool {
+    let filters: Vec<bool> = vec!(
+        empty_or_matching(&host.environment, &filter.environment),
+        // TODO: this should be a regex match on the id
+        empty_or_matching(&host.id, &filter.id) || filter.id_inverse,
+        empty_or_matching(&host.os_family, &filter.os_family),
+        empty_or_matching(&host.productname, &filter.productname),
+        empty_or_matching(&host.realm, &filter.realm),
+        empty_or_matching(&host.saltversion, &filter.saltversion),
+        );
+
+    filters.iter()
+        .fold(true, |acc, &x| acc && x)
+}
+
+fn empty_or_matching(value: &String, filter: &String) -> bool {
+    if filter == "" {
+        return true
+    }
+
+    return value == filter
 }
 
 fn parse_hosts_from_folder(folder: &str) -> BTreeMap<String, Host> {

@@ -18,3 +18,39 @@ args:
         short: e
         takes_value: true
         global: true
+    - id:
+        help: filter out all minions that don't match the given id
+        long: id
+        short: i
+        takes_value: true
+        global: true
+    - id_inverse:
+        help: reverts the filter for the id and prints all minions that don't match the id if true
+        long: inverse
+        short: n
+        takes_value: true
+        global: true
+    - os_family:
+        help: filter out all minions that don't use the given operating systems
+        long: os_family
+        short: o
+        takes_value: true
+        global: true
+    - productname:
+        help: filter out all minions that don't use the given productname
+        long: productname
+        short: p
+        takes_value: true
+        global: true
+    - realm:
+        help: filter out all minions that are not in the given realm
+        long: realm
+        short: r
+        takes_value: true
+        global: true
+    - saltversion:
+        help: filter out all minions that are not using the given salt version
+        long: saltversion
+        short: s
+        takes_value: true
+        global: true
