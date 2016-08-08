@@ -82,7 +82,7 @@ fn main() {
 
     let filter = Filter {
         environment: String::from(matches.value_of("environment").unwrap_or("")),
-        id: String::from(matches.value_of("id").unwrap_or("")),
+        id: String::from(matches.value_of("id").unwrap_or(".*")),
         id_inverse: matches.value_of("id_inverse").unwrap_or("false").parse().unwrap_or(false),
         os_family: String::from(matches.value_of("os_family").unwrap_or("")),
         productname: String::from(matches.value_of("productname").unwrap_or("")),
@@ -94,6 +94,8 @@ fn main() {
     debug!("folder: {:#?}", folder);
     debug!("filter: {:#?}", filter);
 
+    // TODO: move this back into the filter_host function but avoid recompiling the regex for every
+    // host (see https://doc.rust-lang.org/regex/regex/index.html#example-avoid-compiling-the-same-regex-in-a-loop)
     let id_regex = Regex::new(filter.id.as_str()).unwrap();
 
     let hosts = parse_hosts_from_folder(folder);
