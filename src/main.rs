@@ -101,7 +101,10 @@ impl Warning {
 
 fn main() {
     let yaml = load_yaml!("cli.yml");
-    let matches = App::from_yaml(yaml).get_matches();
+    let matches = App::from_yaml(yaml)
+        .version(crate_version!())
+        .get_matches();
+
     debug!("matches: {:#?}", matches);
 
     let folder = matches.value_of("folder").unwrap_or("grains");
