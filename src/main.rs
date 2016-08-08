@@ -6,6 +6,7 @@ extern crate serde_yaml;
 extern crate glob;
 extern crate env_logger;
 extern crate regex;
+extern crate loggerv;
 
 #[macro_use]
 extern crate log;
@@ -24,6 +25,8 @@ use std::net::Ipv6Addr;
 use glob::glob;
 use clap::App;
 use regex::Regex;
+use std::fmt;
+use log::LogLevel;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Host {
@@ -46,6 +49,12 @@ struct Host {
     productname: String,
 }
 
+impl fmt::Display for Host {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} ({:?})", self.id, self.ipv4)
+    }
+}
+
 #[derive(Debug)]
 struct Filter {
     environment: String,
@@ -55,6 +64,7 @@ struct Filter {
     productname: String,
     realm: String,
     saltversion: String,
+    roles: Vec<String>,
 }
 
 impl Filter {
@@ -67,18 +77,40 @@ impl Filter {
             productname: String::new(),
             realm: String::new(),
             saltversion: String::new(),
+            roles: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Warning {
+    noenvironment: bool,
+    norealm: bool,
+    noroles: bool,
+}
+
+impl Warning {
+    pub fn new() -> Warning {
+        Warning {
+            noenvironment: true,
+            norealm: true,
+            noroles: true,
         }
     }
 }
 
 fn main() {
-    env_logger::init().unwrap();
-
     let yaml = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml).get_matches();
     debug!("matches: {:#?}", matches);
 
     let folder = matches.value_of("folder").unwrap_or("grains");
+    let loglevel: LogLevel = matches.value_of("loglevel")
+            .unwrap_or("warn")
+            .parse()
+            .unwrap_or(LogLevel::Warn);
+
+    loggerv::init_with_level(loglevel).unwrap();
 
     let filter = Filter {
         environment: String::from(matches.value_of("environment").unwrap_or("")),
@@ -91,8 +123,16 @@ fn main() {
         ..Filter::new()
     };
 
+    let warning = Warning {
+        noenvironment: matches.value_of("noenvironment").unwrap_or("true").parse().unwrap_or(true),
+        norealm: matches.value_of("norealm").unwrap_or("true").parse().unwrap_or(true),
+        noroles: matches.value_of("noroles").unwrap_or("true").parse().unwrap_or(true),
+        ..Warning::new()
+    };
+
     debug!("folder: {:#?}", folder);
     debug!("filter: {:#?}", filter);
+    debug!("warning: {:#?}", warning);
 
     // TODO: move this back into the filter_host function but avoid recompiling the regex for every
     // host (see https://doc.rust-lang.org/regex/regex/index.html#example-avoid-compiling-the-same-regex-in-a-loop)
@@ -104,7 +144,25 @@ fn main() {
         .filter(|&(_, host)| id_regex.is_match(host.id.as_str()))
         .collect();
 
+    for (_, host) in &hosts {
+        warn_host(host, &warning)
+    }
+
     println!("{:#?}", hosts)
+}
+
+fn warn_host(host: &Host, warning: &Warning) {
+    if warning.noenvironment && host.environment.is_empty() {
+        warn!("host {} has no environment", host)
+    }
+
+    if warning.norealm && host.realm.is_empty() {
+        warn!("host {} has no realm", host)
+    }
+
+    if warning.noroles && host.roles.is_empty() {
+        warn!("host {} has no roles", host)
+    }
 }
 
 fn filter_host(host: &Host, filter: &Filter) -> bool {
@@ -122,10 +180,10 @@ fn filter_host(host: &Host, filter: &Filter) -> bool {
 
 fn empty_or_matching(value: &String, filter: &String) -> bool {
     if filter == "" {
-        return true
+        return true;
     }
 
-    return value == filter
+    return value == filter;
 }
 
 fn parse_hosts_from_folder(folder: &str) -> BTreeMap<String, Host> {
@@ -143,7 +201,7 @@ fn parse_hosts_from_folder(folder: &str) -> BTreeMap<String, Host> {
         }
     }
 
-    return hosts
+    return hosts;
 }
 
 fn file_to_string(filepath: &Path) -> Result<String> {

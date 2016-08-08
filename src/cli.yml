@@ -12,45 +12,66 @@ args:
         short: f
         takes_value: true
         global: true
+    - loglevel:
+        help: the loglevel to run under
+        long: loglevel
+        short: l
+        takes_value: true
+        global: true
     - environment:
         help: filter out all minions that are not in the given environment
-        long: environment
+        long: filter.environment
         short: e
         takes_value: true
         global: true
     - id:
-        help: filter out all minions that don't match the given id
-        long: id
+        help: filter out all minions that don't match the given id (can be a regex)
+        long: filter.id
         short: i
         takes_value: true
         global: true
     - id_inverse:
         help: reverts the filter for the id and prints all minions that don't match the id if true
-        long: inverse
+        long: filter.inverse
         short: n
         takes_value: true
         global: true
     - os_family:
         help: filter out all minions that don't use the given operating systems
-        long: os_family
+        long: filter.os_family
         short: o
         takes_value: true
         global: true
     - productname:
         help: filter out all minions that don't use the given productname
-        long: productname
+        long: filter.productname
         short: p
         takes_value: true
         global: true
     - realm:
         help: filter out all minions that are not in the given realm
-        long: realm
+        long: filter.realm
         short: r
         takes_value: true
         global: true
     - saltversion:
         help: filter out all minions that are not using the given salt version
-        long: saltversion
+        long: filter.saltversion
         short: s
+        takes_value: true
+        global: true
+    - noenvironment:
+        help: warn about minions that don't have the environment grain set
+        long: warn.noenvironment
+        takes_value: true
+        global: true
+    - norealm:
+        help: warn about minions that don't have the realm grain set
+        long: warn.norealm
+        takes_value: true
+        global: true
+    - noroles:
+        help: warn about minions that don't have any roles set
+        long: warn.noroles
         takes_value: true
         global: true
