@@ -10,6 +10,7 @@ serde_yaml = "^0.2"
 glob = "*"
 log = "0.3"
 env_logger = "0.3"
+regex = "0.1"
 
 [dependencies.clap]
 version = "2"

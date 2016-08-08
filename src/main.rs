@@ -5,6 +5,7 @@ extern crate serde;
 extern crate serde_yaml;
 extern crate glob;
 extern crate env_logger;
+extern crate regex;
 
 #[macro_use]
 extern crate log;
@@ -22,7 +23,7 @@ use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 use glob::glob;
 use clap::App;
-use std::str::FromStr;
+use regex::Regex;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Host {
@@ -93,9 +94,12 @@ fn main() {
     debug!("folder: {:#?}", folder);
     debug!("filter: {:#?}", filter);
 
+    let id_regex = Regex::new(filter.id.as_str()).unwrap();
+
     let hosts = parse_hosts_from_folder(folder);
     let hosts: BTreeMap<_, _> = hosts.iter()
         .filter(|&(_, host)| filter_host(host, &filter))
+        .filter(|&(_, host)| id_regex.is_match(host.id.as_str()))
         .collect();
 
     println!("{:#?}", hosts)
@@ -104,8 +108,6 @@ fn main() {
 fn filter_host(host: &Host, filter: &Filter) -> bool {
     let filters: Vec<bool> = vec!(
         empty_or_matching(&host.environment, &filter.environment),
-        // TODO: this should be a regex match on the id
-        empty_or_matching(&host.id, &filter.id) || filter.id_inverse,
         empty_or_matching(&host.os_family, &filter.os_family),
         empty_or_matching(&host.productname, &filter.productname),
         empty_or_matching(&host.realm, &filter.realm),
