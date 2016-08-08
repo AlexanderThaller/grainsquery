@@ -131,9 +131,9 @@ fn main() {
 
     let folder = matches.value_of("folder").unwrap_or("grains");
     let loglevel: LogLevel = matches.value_of("loglevel")
-            .unwrap_or("warn")
-            .parse()
-            .unwrap_or(LogLevel::Warn);
+        .unwrap_or("warn")
+        .parse()
+        .unwrap_or(LogLevel::Warn);
 
     loggerv::init_with_level(loglevel).unwrap();
 
@@ -160,7 +160,8 @@ fn main() {
     debug!("warning: {:#?}", warning);
 
     // TODO: move this back into the filter_host function but avoid recompiling the regex for every
-    // host (see https://doc.rust-lang.org/regex/regex/index.html#example-avoid-compiling-the-same-regex-in-a-loop)
+    // host (see example-avoid-compiling-the-same-regex-in-a-loop in the rust documentation about
+    // the regex crate)
     let id_regex = Regex::new(filter.id.as_str()).unwrap();
 
     let hosts = parse_hosts_from_folder(folder);
