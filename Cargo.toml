@@ -7,6 +7,7 @@ authors = ["Alexander Thaller <alexander.thaller@trivago.com>"]
 serde = "^0.7"
 serde_macros = "^0.7"
 serde_yaml = "^0.2"
+serde_json = "0.8"
 glob = "*"
 log = "0.3"
 loggerv = "0.2.0"

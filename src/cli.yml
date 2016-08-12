@@ -24,7 +24,7 @@ args:
         takes_value: true
         global: true
     - id:
-        help: filter out all minions that don't match the given id (can be a regex)
+        help: filter out all minions that don't match the given id (uses normal globbing)
         long: filter.id
         short: i
         takes_value: true
@@ -78,5 +78,10 @@ args:
     - noroles:
         help: warn about minions that don't have any roles set
         long: warn.noroles
+        takes_value: true
+        global: true
+    - cachefile:
+        help: file to use for caching the result of the grains file parsing
+        long: cache.file
         takes_value: true
         global: true
