@@ -47,12 +47,9 @@ use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 use glob::glob;
 use clap::App;
-use regex::Regex;
 use std::fmt;
 use log::LogLevel;
-use serde_json::Map;
 use serde_json::Value;
-use serde_json::builder::{ArrayBuilder, ObjectBuilder};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Cache {
@@ -186,12 +183,14 @@ fn main() {
 
 fn write_hosts_to_cache(cachefile: &str, hosts: &BTreeMap<String, Host>) -> Result<String> {
     for (id, host) in hosts {
-      debug!("id: {:#?}", id);
-      debug!("host: {:#?}", host);
+        debug!("id: {:#?}", id);
+        debug!("host: {:#?}", host);
 
-      let data = serde_json::to_string(id).unwrap();
+        let data = serde_json::to_string(&host).unwrap();
 
-      return Ok(String::from("haha"))
+        debug!("data: {:#?}", data);
+
+        return Ok(String::from("haha"));
     }
 
     Ok(String::from("blabla"))
@@ -235,7 +234,7 @@ fn empty_or_matching(value: &String, filter: &String) -> bool {
 fn parse_hosts_from_folder(folder: &str, filter: &Filter) -> BTreeMap<String, Host> {
     let mut hosts: BTreeMap<String, Host> = BTreeMap::new();
 
-    let files= format!("./{}/{}.yaml", folder, filter.id);
+    let files = format!("./{}/{}.yaml", folder, filter.id);
     for entry in glob(files.as_str()).expect("Failed to read glob pattern") {
         let host = match entry {
             Ok(path) => host_from_file(path.as_path()),
