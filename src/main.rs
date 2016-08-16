@@ -196,7 +196,7 @@ fn parse_hosts_or_use_cache(folder: &Path,
                             -> BTreeMap<String, Host> {
     if usecache {
         if cachefile.exists() {
-            match read_cache(cachefile) {
+            match read_cache_check_refresh(folder, cachefile) {
                 Some(cache) => cache.hosts,
                 None => parse_hosts_from_folder(folder),
             }
@@ -212,6 +212,40 @@ fn parse_hosts_or_use_cache(folder: &Path,
         }
     } else {
         parse_hosts_from_folder(folder)
+    }
+}
+
+fn get_current_commit_for_grains(folder: &Path) -> String {
+    let path = folder.join(".git").join("FETCH_HEAD");
+    let data = file_to_string(&path).unwrap();
+
+    debug!("git fetch_head: {:#?}", data);
+
+    let commit = data.split_whitespace().next().unwrap();
+
+    debug!("git commit: {:#?}", commit);
+
+    String::from(commit)
+}
+
+fn read_cache_check_refresh(folder: &Path, cachefile: &Path) -> Option<Cache> {
+    let commit = get_current_commit_for_grains(folder);
+
+    match read_cache(cachefile) {
+        None => None,
+        Some(cache) => if cache.gitcommit != commit {
+            let hosts = parse_hosts_from_folder(folder);
+            let newcache = Cache {
+                gitcommit: commit,
+                hosts: hosts.clone(),
+            };
+
+            write_cache(cachefile, &newcache);
+            Some(newcache)
+
+        } else {
+            Some(cache)
+        }
     }
 }
 
