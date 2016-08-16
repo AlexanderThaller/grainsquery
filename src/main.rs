@@ -203,7 +203,7 @@ fn parse_hosts_or_use_cache(folder: &Path,
         } else {
             let hosts = parse_hosts_from_folder(folder);
             let cache = Cache {
-                gitcommit: String::new(),
+                gitcommit: get_current_commit_for_grains(folder),
                 hosts: hosts.clone(),
             };
 
