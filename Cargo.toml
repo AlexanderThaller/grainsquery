@@ -4,16 +4,16 @@ version = "0.1.0"
 authors = ["Alexander Thaller <alexander.thaller@trivago.com>"]
 
 [dependencies]
-serde = "^0.7"
-serde_macros = "^0.7"
-serde_yaml = "^0.2"
-serde_json = "0.8"
+serde = "*"
+serde_macros = "*"
+serde_yaml = "*"
+serde_json = "*"
 glob = "*"
-log = "0.3"
-loggerv = "0.2.0"
-env_logger = "0.3"
-regex = "0.1"
+log = "*"
+loggerv = "*"
+env_logger = "*"
+regex = "*"
 
 [dependencies.clap]
-version = "2"
+version = "*"
 features = ["yaml"]

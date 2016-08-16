@@ -49,15 +49,15 @@ use glob::glob;
 use clap::App;
 use std::fmt;
 use log::LogLevel;
-use serde_json::Value;
+use regex::Regex;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct Cache {
     gitcommit: String,
     hosts: BTreeMap<String, Host>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct Host {
     #[serde(default)]
     environment: String,
@@ -129,6 +129,8 @@ impl Warning {
 }
 
 fn main() {
+    debug!("starting");
+
     let yaml = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml)
         .version(crate_version!())
@@ -136,18 +138,20 @@ fn main() {
 
     debug!("matches: {:#?}", matches);
 
-    let folder = matches.value_of("folder").unwrap_or("grains");
+    let folder = Path::new(matches.value_of("folder").unwrap_or("grains"));
     let loglevel: LogLevel = matches.value_of("loglevel")
         .unwrap_or("warn")
         .parse()
         .unwrap_or(LogLevel::Warn);
-    let cachefile = matches.value_of("cachefile").unwrap_or(".cache");
 
     loggerv::init_with_level(loglevel).unwrap();
+    let cachefile = Path::new(matches.value_of("cachefile").unwrap_or(".grains_cache"));
+    let usecache: bool = matches.value_of("usecachefile").unwrap_or("true").parse().unwrap_or(true);
+    debug!("usecache: {}", usecache);
 
     let filter = Filter {
         environment: String::from(matches.value_of("environment").unwrap_or("")),
-        id: String::from(matches.value_of("id").unwrap_or("*")),
+        id: String::from(matches.value_of("id").unwrap_or(".*")),
         id_inverse: matches.value_of("id_inverse").unwrap_or("false").parse().unwrap_or(false),
         os_family: String::from(matches.value_of("os_family").unwrap_or("")),
         productname: String::from(matches.value_of("productname").unwrap_or("")),
@@ -167,11 +171,16 @@ fn main() {
     debug!("filter: {:#?}", filter);
     debug!("warning: {:#?}", warning);
 
-    let hosts = parse_hosts_from_folder(folder, &filter);
-    write_hosts_to_cache(cachefile, &hosts).unwrap();
+    let hosts = parse_hosts_or_use_cache(&folder, cachefile, usecache);
+
+    // TODO: move this back into the filter_host function but avoid recompiling the regex for every
+    // host (see example-avoid-compiling-the-same-regex-in-a-loop in the rust documentation about
+    // the regex crate)
+    let id_regex = Regex::new(filter.id.as_str()).unwrap();
 
     let hosts: BTreeMap<_, _> = hosts.iter()
         .filter(|&(_, host)| filter_host(host, &filter))
+        .filter(|&(_, host)| id_regex.is_match(host.id.as_str()))
         .collect();
 
     for (_, host) in &hosts {
@@ -181,19 +190,47 @@ fn main() {
     println!("{:#?}", hosts)
 }
 
-fn write_hosts_to_cache(cachefile: &str, hosts: &BTreeMap<String, Host>) -> Result<String> {
-    for (id, host) in hosts {
-        debug!("id: {:#?}", id);
-        debug!("host: {:#?}", host);
+fn parse_hosts_or_use_cache(folder: &Path,
+                            cachefile: &Path,
+                            usecache: bool)
+                            -> BTreeMap<String, Host> {
+    if usecache {
+        if cachefile.exists() {
+            match read_cache(cachefile) {
+                Some(cache) => cache.hosts,
+                None => parse_hosts_from_folder(folder),
+            }
+        } else {
+            let hosts = parse_hosts_from_folder(folder);
+            let cache = Cache {
+                gitcommit: String::new(),
+                hosts: hosts.clone(),
+            };
 
-        let data = serde_json::to_string(&host).unwrap();
-
-        debug!("data: {:#?}", data);
-
-        return Ok(String::from("haha"));
+            write_cache(cachefile, &cache);
+            hosts
+        }
+    } else {
+        parse_hosts_from_folder(folder)
     }
+}
 
-    Ok(String::from("blabla"))
+fn read_cache(cachefile: &Path) -> Option<Cache> {
+    let data = file_to_string(cachefile).unwrap();
+
+    match serde_yaml::from_str(&data) {
+        Ok(cache) => Some(cache),
+        Err(_) => None,
+    }
+}
+
+fn write_cache(cachefile: &Path, cache: &Cache) {
+    let data = serde_json::to_string(&cache).unwrap();
+
+    debug!("data: {:#?}", data);
+
+    let mut file = File::create(cachefile).unwrap();
+    file.write_all(data.as_bytes()).unwrap();
 }
 
 fn warn_host(host: &Host, warning: &Warning) {
@@ -231,10 +268,10 @@ fn empty_or_matching(value: &String, filter: &String) -> bool {
     return value == filter;
 }
 
-fn parse_hosts_from_folder(folder: &str, filter: &Filter) -> BTreeMap<String, Host> {
+fn parse_hosts_from_folder(folder: &Path) -> BTreeMap<String, Host> {
     let mut hosts: BTreeMap<String, Host> = BTreeMap::new();
 
-    let files = format!("./{}/{}.yaml", folder, filter.id);
+    let files = format!("./{}/*.yaml", folder.display());
     for entry in glob(files.as_str()).expect("Failed to read glob pattern") {
         let host = match entry {
             Ok(path) => host_from_file(path.as_path()),
