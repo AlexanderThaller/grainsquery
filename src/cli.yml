@@ -85,7 +85,7 @@ args:
         long: cache.file
         takes_value: true
         global: true
-    - usecachefile:
+    - cacheuse:
         help: if true we will use and generate a cachefile specified by cache,file
         long: cache.use
         takes_value: true

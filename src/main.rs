@@ -146,7 +146,7 @@ fn main() {
 
     loggerv::init_with_level(loglevel).unwrap();
     let cachefile = Path::new(matches.value_of("cachefile").unwrap_or(".grains_cache"));
-    let usecache: bool = matches.value_of("usecachefile").unwrap_or("true").parse().unwrap_or(true);
+    let usecache: bool = matches.value_of("cacheuse").unwrap_or("true").parse().unwrap_or(true);
     debug!("usecache: {}", usecache);
 
     let filter = Filter {
