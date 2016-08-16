@@ -129,22 +129,23 @@ impl Warning {
 }
 
 fn main() {
-    debug!("starting");
-
     let yaml = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml)
         .version(crate_version!())
         .get_matches();
 
-    debug!("matches: {:#?}", matches);
-
-    let folder = Path::new(matches.value_of("folder").unwrap_or("grains"));
     let loglevel: LogLevel = matches.value_of("loglevel")
         .unwrap_or("warn")
         .parse()
         .unwrap_or(LogLevel::Warn);
 
     loggerv::init_with_level(loglevel).unwrap();
+
+    debug!("starting");
+
+    debug!("matches: {:#?}", matches);
+
+    let folder = Path::new(matches.value_of("folder").unwrap_or("grains"));
     let cachefile = Path::new(matches.value_of("cachefile").unwrap_or(".grains_cache"));
     let usecache: bool = matches.value_of("cacheuse").unwrap_or("true").parse().unwrap_or(true);
     debug!("usecache: {}", usecache);
@@ -183,11 +184,25 @@ fn main() {
         .filter(|&(_, host)| id_regex.is_match(host.id.as_str()))
         .collect();
 
-    for (_, host) in &hosts {
-        warn_host(host, &warning)
+    match matches.subcommand.clone() {
+        Some(command) => {
+            match command.name.as_str() {
+                "list" => println!("{:#?}", hosts),
+                "validate" => {
+                    for (_, host) in &hosts {
+                        warn_host(host, &warning)
+                    }
+                }
+                "report" => generate_report(&hosts, &filter),
+                _ => error!("unreachable"),
+            }
+        }
+        None => println!("{:#?}", hosts)
     }
+}
 
-    println!("{:#?}", hosts)
+fn generate_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter) {
+    println!("generating report")
 }
 
 fn parse_hosts_or_use_cache(folder: &Path,
@@ -233,18 +248,20 @@ fn read_cache_check_refresh(folder: &Path, cachefile: &Path) -> Option<Cache> {
 
     match read_cache(cachefile) {
         None => None,
-        Some(cache) => if cache.gitcommit != commit {
-            let hosts = parse_hosts_from_folder(folder);
-            let newcache = Cache {
-                gitcommit: commit,
-                hosts: hosts.clone(),
-            };
+        Some(cache) => {
+            if cache.gitcommit != commit {
+                let hosts = parse_hosts_from_folder(folder);
+                let newcache = Cache {
+                    gitcommit: commit,
+                    hosts: hosts.clone(),
+                };
 
-            write_cache(cachefile, &newcache);
-            Some(newcache)
+                write_cache(cachefile, &newcache);
+                Some(newcache)
 
-        } else {
-            Some(cache)
+            } else {
+                Some(cache)
+            }
         }
     }
 }
