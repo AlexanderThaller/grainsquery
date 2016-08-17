@@ -193,16 +193,47 @@ fn main() {
                         warn_host(host, &warning)
                     }
                 }
-                "report" => generate_report(&hosts, &filter),
+                "report" => render_report(&hosts, &filter),
                 _ => error!("unreachable"),
             }
         }
-        None => println!("{:#?}", hosts)
+        None => println!("{:#?}", hosts),
     }
 }
 
-fn generate_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter) {
-    println!("generating report")
+fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter) {
+    let header = "
+:toc: right
+:toclevels: 3
+:sectanchors:
+:sectlink:
+:icons: font
+:linkattrs:
+:numbered:
+:idprefix:
+:idseparator: -
+:doctype: book
+:source-highlighter: pygments
+:listing-caption: Listing
+
+= Report on Salt Minions";
+
+    println!("{}", header);
+    println!("== Filter\n{}", render_filter(filter));
+}
+
+fn render_filter(filter: &Filter) -> String {
+    let realm = format!("Realm: `{}`", value_or_default(filter.realm.clone(), String::from("-")));
+
+    format!("{}\n", realm)
+}
+
+fn value_or_default(value: String, fallback: String) -> String {
+    if value == "" {
+        fallback
+    } else {
+        value
+    }
 }
 
 fn parse_hosts_or_use_cache(folder: &Path,
