@@ -92,8 +92,8 @@ struct Filter {
     os_family: String,
     productname: String,
     realm: String,
-    saltversion: String,
     roles: Vec<String>,
+    saltversion: String,
 }
 
 impl Filter {
@@ -152,11 +152,12 @@ fn main() {
 
     let filter = Filter {
         environment: String::from(matches.value_of("environment").unwrap_or("")),
-        id: String::from(matches.value_of("id").unwrap_or(".*")),
         id_inverse: matches.value_of("id_inverse").unwrap_or("false").parse().unwrap_or(false),
+        id: String::from(matches.value_of("id").unwrap_or(".*")),
         os_family: String::from(matches.value_of("os_family").unwrap_or("")),
         productname: String::from(matches.value_of("productname").unwrap_or("")),
         realm: String::from(matches.value_of("realm").unwrap_or("")),
+        roles: vec![String::from(matches.value_of("roles").unwrap_or(""))],
         saltversion: String::from(matches.value_of("saltversion").unwrap_or("")),
         ..Filter::new()
     };
@@ -223,9 +224,38 @@ fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter) {
 }
 
 fn render_filter(filter: &Filter) -> String {
-    let realm = format!("Realm: `{}`", value_or_default(filter.realm.clone(), String::from("-")));
+    let environment = format!("Environment:: `{}`",
+                              value_or_default(filter.environment.clone(), String::from("-")));
+    let id_inverse = format!("ID Inverse:: `{}`", filter.id_inverse);
+    let id = format!("ID:: `{}`",
+                     value_or_default(filter.id.clone(), String::from("-")));
+    let os_family = format!("OS Family:: `{}`",
+                            value_or_default(filter.os_family.clone(), String::from("-")));
+    let productname = format!("Product Name:: `{}`",
+                              value_or_default(filter.productname.clone(), String::from("-")));
+    let realm = format!("Realm:: `{}`",
+                        value_or_default(filter.realm.clone(), String::from("-")));
+    let roles = format!("Roles:: `{}`",
+                        value_or_default_vec(filter.roles.clone(), String::from("-")));
+    let saltversion = format!("Salt Version:: `{}`",
+                              value_or_default(filter.saltversion.clone(), String::from("-")));
 
-    format!("{}\n", realm)
+    format!("{}\n{}\n{}\n{}\n{}\n{}\n{}\n",
+            realm,
+            environment,
+            roles,
+            id,
+            id_inverse,
+            os_family,
+            productname)
+}
+
+fn value_or_default_vec(value: Vec<String>, fallback: String) -> String {
+    if value.len() == 0 {
+        fallback
+    } else {
+        value.join("* {}\n")
+    }
 }
 
 fn value_or_default(value: String, fallback: String) -> String {
