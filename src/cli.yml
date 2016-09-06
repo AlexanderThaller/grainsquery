@@ -83,6 +83,7 @@ args:
         help: file to use for caching the result of the grains file parsing
         long: cache.file
         takes_value: true
+        value_name: file
         global: true
     - cacheuse:
         help: if true we will use and generate a cachefile specified by cache,file
@@ -97,3 +98,5 @@ subcommands:
       about: show warnings (missing roles, environment, realm, etc.) about the parsed grains
   - list:
       about: show minions which where parsed from the grains
+  - ssh_hosts:
+      about: generate ssh hosts file from grains
