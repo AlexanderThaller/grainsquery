@@ -87,8 +87,14 @@ impl fmt::Display for Host {
 }
 
 impl Host {
-    fn get_frontend_ip(&self) -> Ipv4Addr {
-        self.ipv4[0]
+    fn get_frontend_ip(&self) -> Option<Ipv4Addr> {
+        for ip in self.ipv4.clone() {
+            if is_frontend_ip(ip) {
+                return Some(ip);
+            }
+        }
+
+        None
     }
 }
 
@@ -139,17 +145,16 @@ impl Warning {
 fn main() {
     let yaml = load_yaml!("cli.yml");
     let app = App::from_yaml(yaml)
-        .version(crate_version!()).get_matches();
+        .version(crate_version!())
+        .get_matches();
 
     let matches = match app.subcommand.clone() {
-        Some(subcommand) => {
-            subcommand.matches
-        },
+        Some(subcommand) => subcommand.matches,
         None => app.clone(),
     };
 
     let loglevel: LogLevel = matches.value_of("loglevel")
-        .unwrap_or("debug")
+        .unwrap_or("warn")
         .parse()
         .unwrap_or(LogLevel::Warn);
 
@@ -174,7 +179,7 @@ fn main() {
 
     let cachefilepath = match matches.value_of("cachefile") {
         Some(path) => PathBuf::from(path),
-        None => homepath.join(".salt_grains_cache")
+        None => homepath.join(".salt_grains_cache"),
     };
     let cachefile = cachefilepath.as_path();
     debug!("cachefile: {:#?}", cachefile);
@@ -236,7 +241,14 @@ fn main() {
 
 fn render_ssh_hosts(hosts: &BTreeMap<&String, &Host>) {
     for (id, host) in hosts {
-        println!("ID: {}, Host: {}", id, host)
+        match host.get_frontend_ip() {
+            Some(ip) => {
+                println!("Host {}", id);
+                println!("  Hostname: {}", ip);
+                println!("");
+            }
+            None => warn!("Host {} has no frontend ip", id),
+        }
     }
 }
 
@@ -450,5 +462,16 @@ fn host_from_file(filepath: &Path) -> BTreeMap<String, Host> {
     match serde_yaml::from_str(&data) {
         Ok(map) => map,
         Err(_) => BTreeMap::<String, Host>::new(),
+    }
+}
+
+fn is_frontend_ip(ip: Ipv4Addr) -> bool {
+    match (ip.octets()[0], ip.octets()[1]) {
+        (10, 1) => true,
+        (10, 11) => true,
+        (10, 21) => true,
+        (10, 31) => true,
+        (192, 168) => true,
+        _ => false,
     }
 }
