@@ -100,3 +100,9 @@ subcommands:
       about: show minions which where parsed from the grains
   - ssh_hosts:
       about: generate ssh hosts file from grains
+      args:
+        - hosts_prefix:
+            help: a prefix that will be written in front of every host (format prefix.host)
+            long: host_prefix
+            takes_value: true
+            value_name: prefix
