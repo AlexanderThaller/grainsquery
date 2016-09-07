@@ -87,10 +87,149 @@ impl fmt::Display for Host {
 }
 
 impl Host {
-    fn get_frontend_ip(&self) -> Option<Ipv4Addr> {
+    fn get_ip(&self, lookup: &str) -> Option<Ipv4Addr> {
         for ip in self.ipv4.clone() {
-            if is_frontend_ip(ip) {
-                return Some(ip);
+            let split: Vec<_> = lookup.split(':').collect();
+            let base = match split.get(0) {
+                Some(d) => d,
+                None => "firewall",
+            };
+
+            let detail = match split.get(1) {
+                Some(d) => d,
+                None => "base_pattern",
+            };
+
+            let matcher = match base {
+                "firewall" => {
+                    match detail {
+                        "frontend" => {
+                            match (ip.octets()[0], ip.octets()[1], ip.octets()[2]) {
+                                (10, 1, 5) => Some(ip),
+                                (10, 1, 2) => Some(ip),
+                                (10, 11, 2) => Some(ip),
+                                (10, 11, 12) => Some(ip),
+                                (10, 21, 2) => Some(ip),
+                                (10, 31, 2) => Some(ip),
+                                (192, 168, _) => Some(ip),
+                                (10, 1, 13) => Some(ip),
+                                (10, 1, 12) => Some(ip),
+                                (10, 1, 11) => Some(ip),
+                                (10, 1, 10) => Some(ip),
+                                (10, 1, 9) => Some(ip),
+                                (10, 1, 8) => Some(ip),
+                                _ => None,
+                            }
+                        }
+                        "backend" => {
+                            match (ip.octets()[0], ip.octets()[1], ip.octets()[2]) {
+                                (10, 1, 3) => Some(ip),
+                                (10, 11, 3) => Some(ip),
+                                (10, 21, 3) => Some(ip),
+                                (10, 31, 3) => Some(ip),
+                                (192, 168, _) => Some(ip),
+                                (172, _, _) => Some(ip),
+                                _ => None,
+                            }
+                        }
+                        "admin" => {
+                            match (ip.octets()[0], ip.octets()[1], ip.octets()[2]) {
+                                (10, 1, 6) => Some(ip),
+                                (10, 11, 6) => Some(ip),
+                                (10, 21, 6) => Some(ip),
+                                (10, 31, 6) => Some(ip),
+                                (192, 168, _) => Some(ip),
+                                (172, _, _) => Some(ip),
+                                _ => None,
+                            }
+                        }
+                        _ => {
+                            match (ip.octets()[0], ip.octets()[1]) {
+                                (10, 1) => Some(ip),
+                                (10, 11) => Some(ip),
+                                (10, 21) => Some(ip),
+                                (10, 31) => Some(ip),
+                                (192, 168) => Some(ip),
+                                (172, _) => Some(ip),
+                                _ => None,
+                            }
+                        }
+                    }
+                }
+                "backbone" => {
+                    match detail {
+                        "admin" => {
+                            match (ip.octets()[0], ip.octets()[1], ip.octets()[2]) {
+                                (10, 2, 6) => Some(ip),
+                                (10, 12, 6) => Some(ip),
+                                (10, 22, 6) => Some(ip),
+                                (10, 32, 6) => Some(ip),
+                                (192, 168, _) => Some(ip),
+                                (172, _, _) => Some(ip),
+                                _ => None,
+                            }
+                        }
+                        "frontend" => {
+                            match (ip.octets()[0], ip.octets()[1], ip.octets()[2]) {
+                                (10, 2, 5) => Some(ip),
+                                (10, 2, 2) => Some(ip),
+                                (10, 12, 2) => Some(ip),
+                                (10, 22, 2) => Some(ip),
+                                (10, 32, 2) => Some(ip),
+                                (192, 168, _) => Some(ip),
+                                (172, _, _) => Some(ip),
+                                _ => None,
+                            }
+                        }
+                        "backend" => {
+                            match (ip.octets()[0], ip.octets()[1], ip.octets()[2]) {
+                                (10, 2, 3) => Some(ip),
+                                (10, 12, 3) => Some(ip),
+                                (10, 22, 3) => Some(ip),
+                                (10, 32, 3) => Some(ip),
+                                (192, 168, _) => Some(ip),
+                                (172, _, _) => Some(ip),
+                                _ => None,
+                            }
+                        }
+                        _ => {
+                            match (ip.octets()[0], ip.octets()[1]) {
+                                (10, 2) => Some(ip),
+                                (10, 12) => Some(ip),
+                                (10, 22) => Some(ip),
+                                (10, 32) => Some(ip),
+                                (192, 168) => Some(ip),
+                                (172, _) => Some(ip),
+                                _ => None,
+                            }
+                        }
+                    }
+                }
+                _ => None,
+            };
+
+            if matcher.is_some() {
+                return matcher;
+            };
+        }
+
+        None
+    }
+
+    fn get_reachable_ip(&self) -> Option<Ipv4Addr> {
+        let lookups = vec![
+            "firewall:frontend",
+            "firewall:admin",
+            "firewall:backend",
+            "firewall",
+        ];
+
+        for lookup in lookups {
+            let ip = self.get_ip(lookup);
+
+            if ip.is_some() {
+                debug!("lookup: {}, ip: {}", lookup, ip.unwrap());
+                return ip;
             }
         }
 
@@ -234,7 +373,7 @@ fn main() {
                 "ssh_hosts" => {
                     let prefix = matches.value_of("hosts_prefix").unwrap_or("");
                     render_ssh_hosts(&hosts, prefix);
-                },
+                }
                 _ => println!("{:#?}", hosts),
             }
         }
@@ -249,7 +388,7 @@ fn render_ssh_hosts(hosts: &BTreeMap<&String, &Host>, prefix: &str) {
     };
 
     for (id, host) in hosts {
-        match host.get_frontend_ip() {
+        match host.get_reachable_ip() {
             Some(ip) => {
                 println!("Host {}{}", host_prefix, id);
                 println!("  Hostname {}", ip);
@@ -470,16 +609,5 @@ fn host_from_file(filepath: &Path) -> BTreeMap<String, Host> {
     match serde_yaml::from_str(&data) {
         Ok(map) => map,
         Err(_) => BTreeMap::<String, Host>::new(),
-    }
-}
-
-fn is_frontend_ip(ip: Ipv4Addr) -> bool {
-    match (ip.octets()[0], ip.octets()[1]) {
-        (10, 1) => true,
-        (10, 11) => true,
-        (10, 21) => true,
-        (10, 31) => true,
-        (192, 168) => true,
-        _ => false,
     }
 }
