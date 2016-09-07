@@ -252,7 +252,7 @@ fn render_ssh_hosts(hosts: &BTreeMap<&String, &Host>, prefix: &str) {
         match host.get_frontend_ip() {
             Some(ip) => {
                 println!("Host {}{}", host_prefix, id);
-                println!("  Hostname: {}", ip);
+                println!("  Hostname {}", ip);
                 println!("");
             }
             None => warn!("Host {} has no frontend ip", id),
