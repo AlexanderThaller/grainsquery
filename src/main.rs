@@ -292,7 +292,7 @@ fn main() {
         None => app.clone(),
     };
 
-    let loglevel: LogLevel = matches.value_of("loglevel")
+    let loglevel: LogLevel = matches.value_of("log_level")
         .unwrap_or("warn")
         .parse()
         .unwrap_or(LogLevel::Warn);
@@ -309,39 +309,39 @@ fn main() {
 
     debug!("HomeDir: {}", homepath.display());
 
-    let folderpath = match matches.value_of("folder") {
+    let folderpath = match matches.value_of("folder_grains") {
         Some(path) => PathBuf::from(path),
         None => homepath.join(".salt_grains"),
     };
     let folder = folderpath.as_path();
     debug!("folder: {:#?}", folder);
 
-    let cachefilepath = match matches.value_of("cachefile") {
+    let cachefilepath = match matches.value_of("cache_file") {
         Some(path) => PathBuf::from(path),
         None => homepath.join(".salt_grains_cache"),
     };
     let cachefile = cachefilepath.as_path();
     debug!("cachefile: {:#?}", cachefile);
 
-    let usecache: bool = matches.value_of("cacheuse").unwrap_or("true").parse().unwrap_or(true);
+    let usecache: bool = matches.value_of("cache_use").unwrap_or("true").parse().unwrap_or(true);
     debug!("usecache: {}", usecache);
 
     let filter = Filter {
-        environment: String::from(matches.value_of("environment").unwrap_or("")),
-        id_inverse: matches.value_of("id_inverse").unwrap_or("false").parse().unwrap_or(false),
-        id: String::from(matches.value_of("id").unwrap_or(".*")),
-        os_family: String::from(matches.value_of("os_family").unwrap_or("")),
-        productname: String::from(matches.value_of("productname").unwrap_or("")),
-        realm: String::from(matches.value_of("realm").unwrap_or("")),
-        roles: vec![String::from(matches.value_of("roles").unwrap_or(""))],
-        saltversion: String::from(matches.value_of("saltversion").unwrap_or("")),
+        environment: String::from(matches.value_of("filter_environment").unwrap_or("")),
+        id_inverse: matches.value_of("filter_id_inverse").unwrap_or("false").parse().unwrap_or(false),
+        id: String::from(matches.value_of("filter_id").unwrap_or(".*")),
+        os_family: String::from(matches.value_of("filter_os_family").unwrap_or("")),
+        productname: String::from(matches.value_of("filter_productname").unwrap_or("")),
+        realm: String::from(matches.value_of("filter_realm").unwrap_or("")),
+        roles: vec![String::from(matches.value_of("filter_roles").unwrap_or(""))],
+        saltversion: String::from(matches.value_of("filter_saltversion").unwrap_or("")),
         ..Filter::new()
     };
 
     let warning = Warning {
-        noenvironment: matches.value_of("noenvironment").unwrap_or("true").parse().unwrap_or(true),
-        norealm: matches.value_of("norealm").unwrap_or("true").parse().unwrap_or(true),
-        noroles: matches.value_of("noroles").unwrap_or("true").parse().unwrap_or(true),
+        noenvironment: matches.value_of("warn_noenvironment").unwrap_or("true").parse().unwrap_or(true),
+        norealm: matches.value_of("warn_norealm").unwrap_or("true").parse().unwrap_or(true),
+        noroles: matches.value_of("warn_noroles").unwrap_or("true").parse().unwrap_or(true),
         ..Warning::new()
     };
 
