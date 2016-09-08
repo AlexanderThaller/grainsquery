@@ -110,6 +110,12 @@ args:
         takes_value: true
         global: true
         value_name: bool
+    - cache_force_refresh:
+        help: if true the cache will be forcefully refreshed
+        long: cache.force_refresh
+        takes_value: true
+        global: true
+        value_name: bool
 
 subcommands:
   - report:

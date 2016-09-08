@@ -326,6 +326,9 @@ fn main() {
     let usecache: bool = matches.value_of("cache_use").unwrap_or("true").parse().unwrap_or(true);
     debug!("usecache: {}", usecache);
 
+    let cache_force_refresh: bool = matches.value_of("cache_force_refresh").unwrap_or("false").parse().unwrap_or(false);
+    debug!("cache_force_refresh:: {}", cache_force_refresh);
+
     let filter = Filter {
         environment: String::from(matches.value_of("filter_environment").unwrap_or("")),
         id_inverse: matches.value_of("filter_id_inverse").unwrap_or("false").parse().unwrap_or(false),
@@ -348,7 +351,7 @@ fn main() {
     debug!("filter: {:#?}", filter);
     debug!("warning: {:#?}", warning);
 
-    let hosts = parse_hosts_or_use_cache(&folder, cachefile, usecache);
+    let hosts = parse_hosts_or_use_cache(&folder, cachefile, usecache, cache_force_refresh);
 
     // TODO: move this back into the filter_host function but avoid recompiling the regex for every
     // host (see example-avoid-compiling-the-same-regex-in-a-loop in the rust documentation about
@@ -465,15 +468,19 @@ fn value_or_default(value: String, fallback: String) -> String {
 
 fn parse_hosts_or_use_cache(folder: &Path,
                             cachefile: &Path,
-                            usecache: bool)
+                            usecache: bool,
+                            cache_force_refresh: bool)
                             -> BTreeMap<String, Host> {
     if usecache {
-        if cachefile.exists() {
+        debug!("use cache");
+        if !cache_force_refresh && cachefile.exists() {
+            debug!("Read cache");
             match read_cache_check_refresh(folder, cachefile) {
                 Some(cache) => cache.hosts,
                 None => parse_hosts_from_folder(folder),
             }
         } else {
+            debug!("Read hosts");
             let hosts = parse_hosts_from_folder(folder);
             let cache = Cache {
                 gitcommit: get_current_commit_for_grains(folder),
@@ -484,6 +491,7 @@ fn parse_hosts_or_use_cache(folder: &Path,
             hosts
         }
     } else {
+        debug!("don't use cache");
         parse_hosts_from_folder(folder)
     }
 }
