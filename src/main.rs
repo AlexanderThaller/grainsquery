@@ -239,13 +239,14 @@ impl Host {
 
 #[derive(Debug)]
 struct Filter {
-    environment: String,
+    environment:   String,
     id_inverse: bool,
     id: String,
     os_family: String,
     productname: String,
     realm: String,
     roles: Vec<String>,
+    roles_mode: String,
     saltversion: String,
 }
 
@@ -260,6 +261,7 @@ impl Filter {
             realm: String::new(),
             saltversion: String::new(),
             roles: Vec::new(),
+            roles_mode: String::new(),
         }
     }
 }
@@ -336,7 +338,8 @@ fn main() {
         os_family: String::from(matches.value_of("filter_os_family").unwrap_or("")),
         productname: String::from(matches.value_of("filter_productname").unwrap_or("")),
         realm: String::from(matches.value_of("filter_realm").unwrap_or("")),
-        roles: vec![String::from(matches.value_of("filter_roles").unwrap_or(""))],
+        roles: values_t!(matches.values_of("filter_roles"), String).unwrap_or(Vec::new()),
+        roles_mode: String::from(matches.value_of("filter_roles_mode").unwrap_or("one")),
         saltversion: String::from(matches.value_of("filter_saltversion").unwrap_or("")),
         ..Filter::new()
     };
@@ -353,6 +356,8 @@ fn main() {
 
     let hosts = parse_hosts_or_use_cache(&folder, cachefile, usecache, cache_force_refresh);
 
+    debug!("Hosts Length: {}", hosts.len());
+
     // TODO: move this back into the filter_host function but avoid recompiling the regex for every
     // host (see example-avoid-compiling-the-same-regex-in-a-loop in the rust documentation about
     // the regex crate)
@@ -362,6 +367,8 @@ fn main() {
         .filter(|&(_, host)| filter_host(host, &filter))
         .filter(|&(_, host)| id_regex.is_match(host.id.as_str()))
         .collect();
+
+    debug!("Filtered Hosts Length: {}", hosts.len());
 
     match app.subcommand.clone() {
         Some(command) => {
@@ -421,6 +428,16 @@ fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter) {
 
     println!("{}", header);
     println!("== Filter\n{}", render_filter(filter));
+
+    println!("");
+    println!("== Hosts");
+    for (id, host) in hosts {
+        println!("=== {}", id);
+        println!("Salt Version:: {}", host.saltversion);
+        println!("Operating System:: {}", host.os);
+        println!("Product Name:: {}", host.productname);
+        println!("");
+    }
 }
 
 fn render_filter(filter: &Filter) -> String {
@@ -440,14 +457,15 @@ fn render_filter(filter: &Filter) -> String {
     let saltversion = format!("Salt Version:: `{}`",
                               value_or_default(filter.saltversion.clone(), String::from("-")));
 
-    format!("{}\n{}\n{}\n{}\n{}\n{}\n{}\n",
+    format!("{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
             realm,
             environment,
             roles,
             id,
             id_inverse,
             os_family,
-            productname)
+            productname,
+            saltversion)
 }
 
 fn value_or_default_vec(value: Vec<String>, fallback: String) -> String {
@@ -571,10 +589,25 @@ fn filter_host(host: &Host, filter: &Filter) -> bool {
         empty_or_matching(&host.productname, &filter.productname),
         empty_or_matching(&host.realm, &filter.realm),
         empty_or_matching(&host.saltversion, &filter.saltversion),
+        contains_one(&host.roles, &filter.roles),
         );
 
     filters.iter()
         .fold(true, |acc, &x| acc && x)
+}
+
+fn contains_one<T: std::cmp::PartialEq>(source: &Vec<T>, search: &Vec<T>) -> bool {
+    if search.len() == 0 {
+        return true
+    }
+
+    for entry in search {
+        if source.contains(&entry) {
+            return true
+        }
+    }
+
+    return false
 }
 
 fn empty_or_matching(value: &String, filter: &String) -> bool {

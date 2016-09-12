@@ -68,36 +68,26 @@ args:
         global: true
         value_name: version
     - filter_roles:
-        help: filter out all minions which don't have the given role (multiple values possible)
+        help: filter out all minions which don't have the given role (multiple occurences possible)
         long: filter.roles
         short: r
         takes_value: true
         global: true
-        value_name: roles
+        value_name: role
+        multiple: true
+    - filter_roles_mode:
+        help: the mode of the roles filter which specifies if you want all
+          minions that have one of the given roles or all roles (default is one)
+        long: filter.roles.mode
+        takes_value: true
+        global: true
+        value_name: mode
     - filter_ip:
         help: filter out all minions that dont have the given ip
         long: filter.ip
         takes_value: true
         global: true
         value_name: ip
-    - warn_noenvironment:
-        help: warn about minions that don't have the environment grain set
-        long: warn.noenvironment
-        takes_value: true
-        global: true
-        value_name: bool
-    - warn_norealm:
-        help: warn about minions that don't have the realm grain set
-        long: warn.norealm
-        takes_value: true
-        global: true
-        value_name: bool
-    - warn_noroles:
-        help: warn about minions that don't have any roles set
-        long: warn.noroles
-        takes_value: true
-        global: true
-        value_name: bool
     - cache_file:
         help: file to use for caching the result of the grains file parsing
         long: cache.file
@@ -122,6 +112,22 @@ subcommands:
       about: generate a report out the grain files
   - validate:
       about: show warnings (missing roles, environment, realm, etc.) about the parsed grains
+      args:
+        - warn_noenvironment:
+            help: warn about minions that don't have the environment grain set
+            long: warn.noenvironment
+            takes_value: true
+            value_name: bool
+        - warn_norealm:
+            help: warn about minions that don't have the realm grain set
+            long: warn.norealm
+            takes_value: true
+            value_name: bool
+        - warn_noroles:
+            help: warn about minions that don't have any roles set
+            long: warn.noroles
+            takes_value: true
+            value_name: bool
   - list:
       about: show minions which where parsed from the grains
   - ssh_hosts:
