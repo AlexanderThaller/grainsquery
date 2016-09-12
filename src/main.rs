@@ -239,7 +239,7 @@ impl Host {
 
 #[derive(Debug)]
 struct Filter {
-    environment:   String,
+    environment: String,
     id_inverse: bool,
     id: String,
     os_family: String,
@@ -328,12 +328,16 @@ fn main() {
     let usecache: bool = matches.value_of("cache_use").unwrap_or("true").parse().unwrap_or(true);
     debug!("usecache: {}", usecache);
 
-    let cache_force_refresh: bool = matches.value_of("cache_force_refresh").unwrap_or("false").parse().unwrap_or(false);
+    let cache_force_refresh: bool =
+        matches.value_of("cache_force_refresh").unwrap_or("false").parse().unwrap_or(false);
     debug!("cache_force_refresh:: {}", cache_force_refresh);
 
     let filter = Filter {
         environment: String::from(matches.value_of("filter_environment").unwrap_or("")),
-        id_inverse: matches.value_of("filter_id_inverse").unwrap_or("false").parse().unwrap_or(false),
+        id_inverse: matches.value_of("filter_id_inverse")
+            .unwrap_or("false")
+            .parse()
+            .unwrap_or(false),
         id: String::from(matches.value_of("filter_id").unwrap_or(".*")),
         os_family: String::from(matches.value_of("filter_os_family").unwrap_or("")),
         productname: String::from(matches.value_of("filter_productname").unwrap_or("")),
@@ -345,7 +349,10 @@ fn main() {
     };
 
     let warning = Warning {
-        noenvironment: matches.value_of("warn_noenvironment").unwrap_or("true").parse().unwrap_or(true),
+        noenvironment: matches.value_of("warn_noenvironment")
+            .unwrap_or("true")
+            .parse()
+            .unwrap_or(true),
         norealm: matches.value_of("warn_norealm").unwrap_or("true").parse().unwrap_or(true),
         noroles: matches.value_of("warn_noroles").unwrap_or("true").parse().unwrap_or(true),
         ..Warning::new()
@@ -428,9 +435,65 @@ fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter) {
 
     println!("{}", header);
     println!("== Filter\n{}", render_filter(filter));
-
     println!("");
-    println!("== Hosts");
+
+    println!("== Overview");
+    println!("Total Host Count:: {}", hosts.len());
+    println!("");
+
+    println!("== Realms");
+    let mut realms: BTreeMap<String, u32> = BTreeMap::default();
+    for (_, host) in hosts.iter() {
+        *realms.entry(host.realm.clone()).or_insert(0) += 1;
+    }
+    println!("{}",
+             render_key_value_list(&realms, "Realm".into(), "Count".into()));
+    println!("");
+
+    println!("== Environments");
+    let mut environments: BTreeMap<String, u32> = BTreeMap::default();
+    for (_, host) in hosts.iter() {
+        *environments.entry(host.environment.clone()).or_insert(0) += 1;
+    }
+    println!("{}",
+             render_key_value_list(&environments, "Environment".into(), "Count".into()));
+    println!("");
+
+    println!("== Salt Versions");
+    let mut salts: BTreeMap<String, u32> = BTreeMap::default();
+    for (_, host) in hosts.iter() {
+        *salts.entry(host.saltversion.clone()).or_insert(0) += 1;
+    }
+    println!("{}",
+             render_key_value_list(&salts, "Salt Version".into(), "Count".into()));
+    println!("");
+
+    println!("== Products");
+    let mut products: BTreeMap<String, u32> = BTreeMap::default();
+    for (_, host) in hosts.iter() {
+        let filtered = filter_lines_beginning_with(&host.productname, "#");
+        *products.entry(filtered).or_insert(0) += 1;
+    }
+    println!("{}",
+             render_key_value_list(&products, "Product".into(), "Count".into()));
+    println!("");
+
+    println!("== Roles");
+    let mut roles: BTreeMap<String, u32> = BTreeMap::default();
+    for (_, host) in hosts.iter() {
+        for role in host.roles.iter() {
+            *roles.entry(role.clone()).or_insert(0) += 1;
+        }
+    }
+    println!("{}",
+             render_key_value_list(&roles, "Salt Version".into(), "Count".into()));
+    println!("");
+
+
+    // TODO: add os count
+    // TODO: add os_family count
+
+    return println!("== Hosts");
     for (id, host) in hosts {
         println!("=== {}", id);
         println!("Salt Version:: {}", host.saltversion);
@@ -438,6 +501,35 @@ fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter) {
         println!("Product Name:: {}", host.productname);
         println!("");
     }
+    println!("");
+}
+
+fn filter_lines_beginning_with(lines: &String, beginning: &str) -> String {
+    let mut out = String::new();
+
+    for line in lines.split("\n") {
+        if !line.starts_with(beginning) {
+            out.push_str(line);
+        }
+    }
+
+    out
+}
+
+fn render_key_value_list(list: &BTreeMap<String, u32>,
+                         header_key: String,
+                         header_value: String)
+                         -> String {
+    let mut table = String::new();
+
+    for (key, value) in list {
+        table.push_str(format!("|{}|{}\n", key, value).as_str());
+    }
+
+    format!("[cols=\"2*\", options=\"header\"]\n|===\n|{}|{}\n{}|===",
+            header_key,
+            header_value,
+            table)
 }
 
 fn render_filter(filter: &Filter) -> String {
@@ -598,16 +690,16 @@ fn filter_host(host: &Host, filter: &Filter) -> bool {
 
 fn contains_one<T: std::cmp::PartialEq>(source: &Vec<T>, search: &Vec<T>) -> bool {
     if search.len() == 0 {
-        return true
+        return true;
     }
 
     for entry in search {
         if source.contains(&entry) {
-            return true
+            return true;
         }
     }
 
-    return false
+    return false;
 }
 
 fn empty_or_matching(value: &String, filter: &String) -> bool {
