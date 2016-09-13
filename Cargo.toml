@@ -13,6 +13,7 @@ log = "*"
 loggerv = "*"
 env_logger = "*"
 regex = "*"
+time = "*"
 
 [dependencies.clap]
 version = "*"

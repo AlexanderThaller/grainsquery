@@ -30,6 +30,7 @@ extern crate glob;
 extern crate env_logger;
 extern crate regex;
 extern crate loggerv;
+extern crate time;
 
 #[macro_use]
 extern crate log;
@@ -394,7 +395,7 @@ fn main() {
                         warn_host(host, &warning)
                     }
                 }
-                "report" => render_report(&hosts, &filter),
+                "report" => render_report(&hosts, &filter, &folder),
                 "ssh_hosts" => {
                     let prefix = matches.value_of("hosts_prefix").unwrap_or("");
                     render_ssh_hosts(&hosts, prefix);
@@ -424,7 +425,7 @@ fn render_ssh_hosts(hosts: &BTreeMap<&String, &Host>, prefix: &str) {
     }
 }
 
-fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter) {
+fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter, folder: &Path) {
     let header = "
 :toc: right
 :toclevels: 3
@@ -447,6 +448,9 @@ fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter) {
 
     println!("== Overview");
     println!("Total Host Count:: {}", hosts.len());
+    println!("Generated:: {}", time::now().rfc3339());
+    println!("Git Commit:: `{}`", get_current_commit_for_grains(folder));
+    println!("Grainsquery Version:: `{}`", crate_version!());
     println!("");
 
     println!("== Realms");
