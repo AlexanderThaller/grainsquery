@@ -721,7 +721,7 @@ fn parse_hosts_or_use_cache(folder: &Path,
 }
 
 fn get_current_commit_for_grains(folder: &Path) -> String {
-    let path = folder.join(".git").join("FETCH_HEAD");
+    let path = folder.join(".git").join("ORIG_HEAD");
     let data = file_to_string(&path).unwrap();
 
     debug!("git fetch_head: {:#?}", data);
