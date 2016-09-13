@@ -87,6 +87,14 @@ impl fmt::Display for Host {
 }
 
 impl Host {
+    fn get_full_os(&self) -> String {
+        format!("{} {}", self.os, self.osrelease)
+    }
+
+    fn get_full_kernel(&self) -> String {
+        format!("{} {}", self.kernel, self.kernelrelease)
+    }
+
     fn get_ip(&self, lookup: &str) -> Option<Ipv4Addr> {
         for ip in self.ipv4.clone() {
             let split: Vec<_> = lookup.split(':').collect();
@@ -431,7 +439,7 @@ fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter) {
 :source-highlighter: pygments
 :listing-caption: Listing
 
-= Report on Salt Minions";
+= Report on Salt Minions\n";
 
     println!("{}", header);
     println!("== Filter\n{}", render_filter(filter));
@@ -446,7 +454,8 @@ fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter) {
     for (_, host) in hosts.iter() {
         *realms.entry(host.realm.clone()).or_insert(0) += 1;
     }
-    println!("{}",
+    println!("Total:: {}", realms.len());
+    println!("\n{}",
              render_key_value_list(&realms, "Realm".into(), "Count".into()));
     println!("");
 
@@ -455,7 +464,8 @@ fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter) {
     for (_, host) in hosts.iter() {
         *environments.entry(host.environment.clone()).or_insert(0) += 1;
     }
-    println!("{}",
+    println!("Total:: {}", environments.len());
+    println!("\n{}",
              render_key_value_list(&environments, "Environment".into(), "Count".into()));
     println!("");
 
@@ -464,7 +474,8 @@ fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter) {
     for (_, host) in hosts.iter() {
         *salts.entry(host.saltversion.clone()).or_insert(0) += 1;
     }
-    println!("{}",
+    println!("Total:: {}", salts.len());
+    println!("\n{}",
              render_key_value_list(&salts, "Salt Version".into(), "Count".into()));
     println!("");
 
@@ -474,7 +485,8 @@ fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter) {
         let filtered = filter_lines_beginning_with(&host.productname, "#");
         *products.entry(filtered).or_insert(0) += 1;
     }
-    println!("{}",
+    println!("Total:: {}", products.len());
+    println!("\n{}",
              render_key_value_list(&products, "Product".into(), "Count".into()));
     println!("");
 
@@ -485,23 +497,121 @@ fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter) {
             *roles.entry(role.clone()).or_insert(0) += 1;
         }
     }
-    println!("{}",
+    println!("Total:: {}", roles.len());
+    println!("\n{}",
              render_key_value_list(&roles, "Salt Version".into(), "Count".into()));
     println!("");
 
+    println!("== OS");
+    println!("=== OS Family");
+    let mut os_families: BTreeMap<String, u32> = BTreeMap::default();
+    for (_, host) in hosts.iter() {
+        *os_families.entry(host.os_family.clone()).or_insert(0) += 1;
+    }
+    println!("Total:: {}", os_families.len());
+    println!("\n{}",
+             render_key_value_list(&os_families, "OS Family".into(), "Count".into()));
+    println!("");
 
-    // TODO: add os count
-    // TODO: add os_family count
+    println!("=== OS");
+    let mut os: BTreeMap<String, u32> = BTreeMap::default();
+    for (_, host) in hosts.iter() {
+        *os.entry(host.get_full_os()).or_insert(0) += 1;
+    }
+    println!("Total:: {}", os.len());
+    println!("\n{}",
+             render_key_value_list(&os, "OS".into(), "Count".into()));
+    println!("");
 
-    return println!("== Hosts");
+    println!("=== Kernel Family");
+    let mut kernel_families: BTreeMap<String, u32> = BTreeMap::default();
+    for (_, host) in hosts.iter() {
+        *kernel_families.entry(host.kernel.clone()).or_insert(0) += 1;
+    }
+    println!("Total:: {}", kernel_families.len());
+    println!("\n{}",
+             render_key_value_list(&kernel_families, "Kernel Family".into(), "Count".into()));
+    println!("");
+
+    println!("=== Kernel");
+    let mut kernels: BTreeMap<String, u32> = BTreeMap::default();
+    for (_, host) in hosts.iter() {
+        *kernels.entry(host.get_full_kernel()).or_insert(0) += 1;
+    }
+    println!("Total:: {}", kernels.len());
+    println!("\n{}",
+             render_key_value_list(&kernels, "Kernel".into(), "Count".into()));
+    println!("");
+
+    println!("=== IPs");
+    let mut ips: BTreeMap<String, u32> = BTreeMap::default();
+    for (_, host) in hosts.iter() {
+        if host.ipv4.len() != 0 {
+            *ips.entry("IPv4".into()).or_insert(0) += 1;
+        }
+
+        if host.ipv6.len() != 0 {
+            *ips.entry("IPv6".into()).or_insert(0) += 1;
+        }
+    }
+    println!("\n{}",
+             render_key_value_list(&ips, "Version".into(), "Count".into()));
+    println!("");
+
+    println!("== Hosts");
     for (id, host) in hosts {
         println!("=== {}", id);
         println!("Salt Version:: {}", host.saltversion);
-        println!("Operating System:: {}", host.os);
+        println!("Operating System:: {}", host.get_full_os());
+        println!("Kernel:: {}", host.get_full_kernel());
         println!("Product Name:: {}", host.productname);
+        if host.roles.len() != 0 {
+            println!("\n==== Roles\n{}", render_list(&host.roles));
+        }
+
+        println!("==== IPs");
+        match host.get_reachable_ip() {
+            Some(ip) => println!("Reachable:: `{}`", ip),
+            None => {}
+        }
         println!("");
+
+        let lookups = vec![
+            "firewall",
+            "firewall:admin",
+            "firewall:backend",
+            "firewall:frontend",
+        ];
+
+        println!("===== Lookup");
+        for lookup in lookups {
+            match host.get_ip(lookup) {
+                Some(ip) => println!("{}:: `{}`", lookup, ip),
+                None => {}
+            }
+        }
+
+        println!("");
+
+        if host.ipv4.len() != 0 {
+            println!("===== IPv4\n{}", render_list(&host.ipv4));
+        }
+
+        if host.ipv6.len() != 0 {
+            println!("===== IPv6\n{}", render_list(&host.ipv6));
+        }
+
     }
-    println!("");
+}
+
+fn render_list<A: std::fmt::Display>(list: &Vec<A>) -> String {
+    let mut out = String::new();
+
+    for line in list {
+        out.push_str(format!("* `{}`\n", line).as_str());
+    }
+
+    out
 }
 
 fn filter_lines_beginning_with(lines: &String, beginning: &str) -> String {
