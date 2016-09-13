@@ -79,6 +79,7 @@ struct Host {
     roles: Vec<String>,
     saltversion: String,
     productname: String,
+    saltmaster: String,
 }
 
 impl fmt::Display for Host {
@@ -483,6 +484,16 @@ fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter, folder: &Pat
              render_key_value_list(&salts, "Salt Version".into(), "Count".into()));
     println!("");
 
+    println!("== Saltmaster");
+    let mut saltmaster: BTreeMap<String, u32> = BTreeMap::default();
+    for (_, host) in hosts.iter() {
+        *saltmaster.entry(host.saltmaster.clone()).or_insert(0) += 1;
+    }
+    println!("Total:: {}", saltmaster.len());
+    println!("\n{}",
+             render_key_value_list(&saltmaster, "Master".into(), "Count".into()));
+    println!("");
+
     println!("== Products");
     let mut products: BTreeMap<String, u32> = BTreeMap::default();
     for (_, host) in hosts.iter() {
@@ -566,6 +577,7 @@ fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter, folder: &Pat
     for (id, host) in hosts {
         println!("=== {}", id);
         println!("Salt Version:: {}", host.saltversion);
+        println!("Saltmaster:: {}", host.saltmaster);
         println!("Operating System:: {}", host.get_full_os());
         println!("Kernel:: {}", host.get_full_kernel());
         println!("Product Name:: {}", host.productname);
