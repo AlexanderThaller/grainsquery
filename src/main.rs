@@ -351,6 +351,10 @@ fn main() {
         matches.value_of("cache_force_refresh").unwrap_or("false").parse().unwrap_or(false);
     debug!("cache_force_refresh:: {}", cache_force_refresh);
 
+    let generate_hosts: bool =
+        matches.value_of("generate_hosts").unwrap_or("true").parse().unwrap_or(true);
+    debug!("generate_hosts: {}", generate_hosts);
+
     let filter = Filter {
         environment: String::from(matches.value_of("filter_environment").unwrap_or("")),
         id_inverse: matches.value_of("filter_id_inverse")
@@ -401,14 +405,14 @@ fn main() {
             match command.name.as_str() {
                 "list" => println!("{:#?}", hosts),
                 "validate" => {
-                    for (_, host) in &hosts {
+                    for (_, host) in hosts {
                         warn_host(host, &warning)
                     }
                 }
-                "report" => render_report(&hosts, &filter, &folder),
+                "report" => render_report(hosts, filter, folder, generate_hosts),
                 "ssh_hosts" => {
                     let prefix = matches.value_of("hosts_prefix").unwrap_or("");
-                    render_ssh_hosts(&hosts, prefix);
+                    render_ssh_hosts(hosts, prefix);
                 }
                 _ => println!("{:#?}", hosts),
             }
@@ -417,7 +421,7 @@ fn main() {
     }
 }
 
-fn render_ssh_hosts(hosts: &BTreeMap<&String, &Host>, prefix: &str) {
+fn render_ssh_hosts(hosts: BTreeMap<&String, &Host>, prefix: &str) {
     let host_prefix = match prefix {
         "" => String::from(""),
         _ => String::from(prefix) + ".",
@@ -435,7 +439,10 @@ fn render_ssh_hosts(hosts: &BTreeMap<&String, &Host>, prefix: &str) {
     }
 }
 
-fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter, folder: &Path) {
+fn render_report(hosts: BTreeMap<&String, &Host>,
+                 filter: Filter,
+                 folder: &Path,
+                 generate_hosts: bool) {
     let header = "
 :toc: right
 :toclevels: 3
@@ -453,7 +460,7 @@ fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter, folder: &Pat
 = Report on Salt Minions\n";
 
     println!("{}", header);
-    println!("== Filter\n{}", render_filter(filter));
+    println!("== Filter\n{}", render_filter(&filter));
     println!("");
 
     println!("== Overview");
@@ -581,6 +588,10 @@ fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter, folder: &Pat
     println!("\n{}",
              render_key_value_list(&ips, "Version".into(), "Count".into()));
     println!("");
+
+    if !generate_hosts {
+        return;
+    }
 
     println!("== Hosts");
     for (id, host) in hosts {
