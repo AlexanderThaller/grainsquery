@@ -65,20 +65,29 @@ struct Host {
     #[serde(default)]
     environment: String,
     id: String,
+    #[serde(default)]
     ipv4: Vec<Ipv4Addr>,
     #[serde(default)]
     ipv6: Vec<Ipv6Addr>,
+    #[serde(default)]
     kernelrelease: String,
+    #[serde(default)]
     kernel: String,
+    #[serde(default)]
     os_family: String,
+    #[serde(default)]
     osrelease: String,
+    #[serde(default)]
     os: String,
     #[serde(default)]
     realm: String,
     #[serde(default)]
     roles: Vec<String>,
+    #[serde(default)]
     saltversion: String,
+    #[serde(default)]
     productname: String,
+    #[serde(default)]
     saltmaster: String,
 }
 
@@ -576,6 +585,8 @@ fn render_report(hosts: &BTreeMap<&String, &Host>, filter: &Filter, folder: &Pat
     println!("== Hosts");
     for (id, host) in hosts {
         println!("=== {}", id);
+        println!("Realm:: {}", host.realm);
+        println!("Environment:: {}", host.environment);
         println!("Salt Version:: {}", host.saltversion);
         println!("Saltmaster:: {}", host.saltmaster);
         println!("Operating System:: {}", host.get_full_os());
@@ -867,6 +878,11 @@ fn host_from_file(filepath: &Path) -> BTreeMap<String, Host> {
 
     match serde_yaml::from_str(&data) {
         Ok(map) => map,
-        Err(_) => BTreeMap::<String, Host>::new(),
+        Err(err) => {
+            error!("can not parse grains for file {}: {}",
+                   filepath.file_name().unwrap().to_str().unwrap(),
+                   err);
+            BTreeMap::<String, Host>::new()
+        }
     }
 }

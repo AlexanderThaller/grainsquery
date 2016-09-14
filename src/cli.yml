@@ -110,6 +110,12 @@ args:
 subcommands:
   - report:
       about: generate a report out the grain files
+      args:
+        - generate_hosts:
+            help: if false the list of hosts will not be generated
+            long: generate.hosts
+            takes_value: true
+            value_name: bool
   - validate:
       about: show warnings (missing roles, environment, realm, etc.) about the parsed grains
       args:
