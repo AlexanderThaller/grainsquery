@@ -69,7 +69,7 @@ args:
         value_name: version
     - filter_roles:
         help: filter out all minions which don't have the given role (multiple occurences possible)
-        long: filter.roles
+        long: filter.role
         short: r
         takes_value: true
         global: true
