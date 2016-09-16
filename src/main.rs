@@ -299,6 +299,7 @@ struct Warning {
     norealm: bool,
     noroles: bool,
     nosaltmaster: bool,
+    noipv6: bool,
 }
 
 impl Warning {
@@ -308,6 +309,7 @@ impl Warning {
             norealm: true,
             noroles: true,
             nosaltmaster: true,
+            noipv6: true,
         }
     }
 }
@@ -392,6 +394,10 @@ fn main() {
         norealm: matches.value_of("warn_norealm").unwrap_or("true").parse().unwrap_or(true),
         noroles: matches.value_of("warn_noroles").unwrap_or("true").parse().unwrap_or(true),
         nosaltmaster: matches.value_of("warn_nosaltmaster")
+            .unwrap_or("true")
+            .parse()
+            .unwrap_or(true),
+        noipv6: matches.value_of("warn_noipv6")
             .unwrap_or("true")
             .parse()
             .unwrap_or(true),
@@ -853,6 +859,10 @@ fn warn_host(host: &Host, warning: &Warning) {
 
     if warning.nosaltmaster && host.saltmaster.is_empty() {
         warn!("host {} has no saltmaster", host)
+    }
+
+    if warning.noipv6 && host.ipv6.is_empty() {
+        warn!("host {} has no ipv6", host)
     }
 }
 

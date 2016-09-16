@@ -146,6 +146,11 @@ subcommands:
             long: warn.nosaltmaster
             takes_value: true
             value_name: bool
+        - warn_noipv6:
+            help: warn about minions that don't have an ipv6 adress set
+            long: warn.noipv6
+            takes_value: true
+            value_name: bool
   - list:
       about: show minions which where parsed from the grains
   - ssh_hosts:
