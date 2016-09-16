@@ -7,7 +7,6 @@ args:
     - folder_grains:
         help: folder from which to read the grain files
         long: folder.grains
-        short: f
         takes_value: true
         global: true
         value_name: folder
@@ -42,21 +41,21 @@ args:
     - filter_os_family:
         help: filter out all minions that don't use the given operating systems
         long: filter.os_family
-        short: o
+        short: f
         takes_value: true
         global: true
         value_name: os_family
     - filter_productname:
         help: filter out all minions that don't use the given productname
         long: filter.productname
-        short: p
+        short: u
         takes_value: true
         global: true
         value_name: productname
     - filter_realm:
         help: filter out all minions that are not in the given realm
         long: filter.realm
-        short: m
+        short: r
         takes_value: true
         global: true
         value_name: realm
@@ -70,7 +69,7 @@ args:
     - filter_roles:
         help: filter out all minions which don't have the given role (multiple occurences possible)
         long: filter.role
-        short: r
+        short: o
         takes_value: true
         global: true
         value_name: role
@@ -85,9 +84,17 @@ args:
     - filter_ip:
         help: filter out all minions that dont have the given ip
         long: filter.ip
+        short: p
         takes_value: true
         global: true
         value_name: ip
+    - filter_saltmaster:
+        help: filter out all minions that don't connect to the given saltmaster
+        long: filter.saltmaster
+        short: m
+        takes_value: true
+        global: true
+        value_name: environment
     - cache_file:
         help: file to use for caching the result of the grains file parsing
         long: cache.file

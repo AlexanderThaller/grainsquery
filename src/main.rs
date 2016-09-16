@@ -270,6 +270,7 @@ struct Filter {
     roles: Vec<String>,
     roles_mode: String,
     saltversion: String,
+    saltmaster: String,
 }
 
 impl Filter {
@@ -284,6 +285,7 @@ impl Filter {
             saltversion: String::new(),
             roles: Vec::new(),
             roles_mode: String::new(),
+            saltmaster: String::new(),
         }
     }
 }
@@ -373,6 +375,7 @@ fn main() {
         roles: values_t!(matches.values_of("filter_roles"), String).unwrap_or(Vec::new()),
         roles_mode: String::from(matches.value_of("filter_roles_mode").unwrap_or("one")),
         saltversion: String::from(matches.value_of("filter_saltversion").unwrap_or("")),
+        saltmaster: String::from(matches.value_of("filter_saltmaster").unwrap_or("")),
         ..Filter::new()
     };
 
@@ -839,6 +842,7 @@ fn filter_host(host: &Host, filter: &Filter) -> bool {
         empty_or_matching(&host.productname, &filter.productname),
         empty_or_matching(&host.realm, &filter.realm),
         empty_or_matching(&host.saltversion, &filter.saltversion),
+        empty_or_matching(&host.saltmaster, &filter.saltmaster),
         contains_one(&host.roles, &filter.roles),
         );
 
