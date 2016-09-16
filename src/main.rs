@@ -31,6 +31,7 @@ extern crate env_logger;
 extern crate regex;
 extern crate loggerv;
 extern crate time;
+extern crate host;
 
 #[macro_use]
 extern crate log;
@@ -44,16 +45,63 @@ use log::LogLevel;
 use regex::Regex;
 use std::collections::BTreeMap as Map;
 use std::env;
-use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::Result;
 use std::net::Ipv4Addr;
-use std::net::Ipv6Addr;
 use std::path::Path;
 use std::path::PathBuf;
 use std::vec::Vec;
 use std::str::FromStr;
+use host::Host;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct Cache {
+    gitcommit: String,
+    hosts: Map<String, Host>,
+}
+
+#[derive(Debug)]
+struct Filter {
+    environment: String,
+    id_inverse: bool,
+    id: String,
+    os_family: String,
+    productname: String,
+    realm: String,
+    roles: Vec<String>,
+    roles_mode: String,
+    saltversion: String,
+    saltmaster: String,
+    ipv4: Ipv4Addr,
+}
+
+impl Default for Filter {
+    fn default() -> Filter {
+        Filter {
+            environment: String::new(),
+            id: String::new(),
+            id_inverse: false,
+            os_family: String::new(),
+            productname: String::new(),
+            realm: String::new(),
+            saltversion: String::new(),
+            roles: Vec::new(),
+            roles_mode: String::new(),
+            saltmaster: String::new(),
+            ipv4: Ipv4Addr::new(0, 0, 0, 0),
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct Warning {
+    noenvironment: bool,
+    norealm: bool,
+    noroles: bool,
+    nosaltmaster: bool,
+    noipv6: bool,
+}
 
 fn main() {
     let yaml = load_yaml!("cli.yml");
@@ -124,7 +172,7 @@ fn main() {
         saltmaster: String::from(matches.value_of("filter_saltmaster").unwrap_or("")),
         ipv4: Ipv4Addr::from_str(matches.value_of("filter_ip").unwrap_or(""))
             .unwrap_or(Ipv4Addr::new(0, 0, 0, 0)),
-        ..Filter::new()
+        ..Filter::default()
     };
 
     let warning = Warning {
@@ -483,43 +531,6 @@ fn value_or_default(value: String, fallback: String) -> String {
     }
 }
 
-#[derive(Debug, Default)]
-struct Warning {
-    noenvironment: bool,
-    norealm: bool,
-    noroles: bool,
-    nosaltmaster: bool,
-    noipv6: bool,
-}
-
-fn warn_host(host: &Host, warning: &Warning) {
-    if warning.noenvironment && host.environment.is_empty() {
-        warn!("host {} has no environment", host)
-    }
-
-    if warning.norealm && host.realm.is_empty() {
-        warn!("host {} has no realm", host)
-    }
-
-    if warning.noroles && host.roles.is_empty() {
-        warn!("host {} has no roles", host)
-    }
-
-    if warning.nosaltmaster && host.saltmaster.is_empty() {
-        warn!("host {} has no saltmaster", host)
-    }
-
-    if warning.noipv6 && host.ipv6.is_empty() {
-        warn!("host {} has no ipv6", host)
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct Cache {
-    gitcommit: String,
-    hosts: Map<String, Host>,
-}
-
 fn parse_hosts_or_use_cache(folder: &Path,
                             cachefile: &Path,
                             usecache: bool,
@@ -604,205 +615,6 @@ fn write_cache(cachefile: &Path, cache: &Cache) {
     file.write_all(data.as_bytes()).unwrap();
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-struct Host {
-    #[serde(default)]
-    environment: String,
-    id: String,
-    #[serde(default)]
-    ipv4: Vec<Ipv4Addr>,
-    #[serde(default)]
-    ipv6: Vec<Ipv6Addr>,
-    #[serde(default)]
-    kernelrelease: String,
-    #[serde(default)]
-    kernel: String,
-    #[serde(default)]
-    os_family: String,
-    #[serde(default)]
-    osrelease: String,
-    #[serde(default)]
-    os: String,
-    #[serde(default)]
-    realm: String,
-    #[serde(default)]
-    roles: Vec<String>,
-    #[serde(default)]
-    saltversion: String,
-    #[serde(default)]
-    productname: String,
-    #[serde(default)]
-    saltmaster: String,
-}
-
-impl fmt::Display for Host {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.get_reachable_ip() {
-            Some(ip) => write!(f, "{} ({:?})", self.id, ip),
-            None => write!(f, "{} ({:?})", self.id, self.ipv4),
-        }
-    }
-}
-
-impl Host {
-    fn get_full_os(&self) -> String {
-        format!("{} {}", self.os, self.osrelease)
-    }
-
-    fn get_full_kernel(&self) -> String {
-        format!("{} {}", self.kernel, self.kernelrelease)
-    }
-
-    fn get_ip(&self, lookup: &str) -> Option<Ipv4Addr> {
-        for ip in self.ipv4.clone() {
-            let split: Vec<_> = lookup.split(':').collect();
-            let base = match split.get(0) {
-                Some(d) => d,
-                None => "firewall",
-            };
-
-            let detail = match split.get(1) {
-                Some(d) => d,
-                None => "base_pattern",
-            };
-
-            let matcher = match base {
-                "firewall" => {
-                    match detail {
-                        "frontend" => {
-                            match (ip.octets()[0], ip.octets()[1], ip.octets()[2]) {
-                                (10, 1, 5) => Some(ip),
-                                (10, 1, 2) => Some(ip),
-                                (10, 11, 2) => Some(ip),
-                                (10, 11, 12) => Some(ip),
-                                (10, 21, 2) => Some(ip),
-                                (10, 31, 2) => Some(ip),
-                                (192, 168, _) => Some(ip),
-                                (10, 1, 13) => Some(ip),
-                                (10, 1, 12) => Some(ip),
-                                (10, 1, 11) => Some(ip),
-                                (10, 1, 10) => Some(ip),
-                                (10, 1, 9) => Some(ip),
-                                (10, 1, 8) => Some(ip),
-                                _ => None,
-                            }
-                        }
-                        "backend" => {
-                            match (ip.octets()[0], ip.octets()[1], ip.octets()[2]) {
-                                (10, 1, 3) => Some(ip),
-                                (10, 11, 3) => Some(ip),
-                                (10, 21, 3) => Some(ip),
-                                (10, 31, 3) => Some(ip),
-                                (192, 168, _) => Some(ip),
-                                (172, _, _) => Some(ip),
-                                _ => None,
-                            }
-                        }
-                        "admin" => {
-                            match (ip.octets()[0], ip.octets()[1], ip.octets()[2]) {
-                                (10, 1, 6) => Some(ip),
-                                (10, 11, 6) => Some(ip),
-                                (10, 21, 6) => Some(ip),
-                                (10, 31, 6) => Some(ip),
-                                (192, 168, _) => Some(ip),
-                                (172, _, _) => Some(ip),
-                                _ => None,
-                            }
-                        }
-                        _ => {
-                            match (ip.octets()[0], ip.octets()[1]) {
-                                (10, 1) => Some(ip),
-                                (10, 11) => Some(ip),
-                                (10, 21) => Some(ip),
-                                (10, 31) => Some(ip),
-                                (192, 168) => Some(ip),
-                                (172, _) => Some(ip),
-                                _ => None,
-                            }
-                        }
-                    }
-                }
-                "backbone" => {
-                    match detail {
-                        "admin" => {
-                            match (ip.octets()[0], ip.octets()[1], ip.octets()[2]) {
-                                (10, 2, 6) => Some(ip),
-                                (10, 12, 6) => Some(ip),
-                                (10, 22, 6) => Some(ip),
-                                (10, 32, 6) => Some(ip),
-                                (192, 168, _) => Some(ip),
-                                (172, _, _) => Some(ip),
-                                _ => None,
-                            }
-                        }
-                        "frontend" => {
-                            match (ip.octets()[0], ip.octets()[1], ip.octets()[2]) {
-                                (10, 2, 5) => Some(ip),
-                                (10, 2, 2) => Some(ip),
-                                (10, 12, 2) => Some(ip),
-                                (10, 22, 2) => Some(ip),
-                                (10, 32, 2) => Some(ip),
-                                (192, 168, _) => Some(ip),
-                                (172, _, _) => Some(ip),
-                                _ => None,
-                            }
-                        }
-                        "backend" => {
-                            match (ip.octets()[0], ip.octets()[1], ip.octets()[2]) {
-                                (10, 2, 3) => Some(ip),
-                                (10, 12, 3) => Some(ip),
-                                (10, 22, 3) => Some(ip),
-                                (10, 32, 3) => Some(ip),
-                                (192, 168, _) => Some(ip),
-                                (172, _, _) => Some(ip),
-                                _ => None,
-                            }
-                        }
-                        _ => {
-                            match (ip.octets()[0], ip.octets()[1]) {
-                                (10, 2) => Some(ip),
-                                (10, 12) => Some(ip),
-                                (10, 22) => Some(ip),
-                                (10, 32) => Some(ip),
-                                (192, 168) => Some(ip),
-                                (172, _) => Some(ip),
-                                _ => None,
-                            }
-                        }
-                    }
-                }
-                _ => None,
-            };
-
-            if matcher.is_some() {
-                return matcher;
-            };
-        }
-
-        None
-    }
-
-    fn get_reachable_ip(&self) -> Option<Ipv4Addr> {
-        let lookups = vec![
-            "firewall:frontend",
-            "firewall:admin",
-            "firewall:backend",
-            "firewall",
-        ];
-
-        for lookup in lookups {
-            let ip = self.get_ip(lookup);
-
-            if ip.is_some() {
-                debug!("lookup: {}, ip: {}", lookup, ip.unwrap());
-                return ip;
-            }
-        }
-
-        None
-    }
-}
-
 fn parse_hosts_from_folder(folder: &Path) -> Map<String, Host> {
     let mut hosts: Map<String, Host> = Map::new();
 
@@ -838,39 +650,6 @@ fn file_to_string(filepath: &Path) -> Result<String> {
     try!(f.read_to_string(&mut s));
 
     Ok(s)
-}
-
-#[derive(Debug)]
-struct Filter {
-    environment: String,
-    id_inverse: bool,
-    id: String,
-    os_family: String,
-    productname: String,
-    realm: String,
-    roles: Vec<String>,
-    roles_mode: String,
-    saltversion: String,
-    saltmaster: String,
-    ipv4: Ipv4Addr,
-}
-
-impl Filter {
-    fn new() -> Filter {
-        Filter {
-            environment: String::new(),
-            id: String::new(),
-            id_inverse: false,
-            os_family: String::new(),
-            productname: String::new(),
-            realm: String::new(),
-            saltversion: String::new(),
-            roles: Vec::new(),
-            roles_mode: String::new(),
-            saltmaster: String::new(),
-            ipv4: Ipv4Addr::new(0, 0, 0, 0),
-        }
-    }
 }
 
 fn filter_host(host: &Host, filter: &Filter) -> bool {
@@ -940,4 +719,26 @@ fn empty_or_matching(value: &String, filter: &String) -> bool {
     }
 
     return value == filter;
+}
+
+fn warn_host(host: &Host, warning: &Warning) {
+    if warning.noenvironment && host.environment.is_empty() {
+        warn!("host {} has no environment", host)
+    }
+
+    if warning.norealm && host.realm.is_empty() {
+        warn!("host {} has no realm", host)
+    }
+
+    if warning.noroles && host.roles.is_empty() {
+        warn!("host {} has no roles", host)
+    }
+
+    if warning.nosaltmaster && host.saltmaster.is_empty() {
+        warn!("host {} has no saltmaster", host)
+    }
+
+    if warning.noipv6 && host.ipv6.is_empty() {
+        warn!("host {} has no ipv6", host)
+    }
 }
