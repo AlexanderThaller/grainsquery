@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 struct Host {
     #[serde(default)]
     environment: String,
@@ -217,4 +217,39 @@ impl Host {
 
         None
     }
+}
+
+fn parse_hosts_from_folder(folder: &Path) -> Map<String, Host> {
+    let mut hosts: Map<String, Host> = Map::new();
+
+    let files = format!("{}/*.yaml", folder.display());
+    for entry in glob(files.as_str()).expect("Failed to read glob pattern") {
+        match entry {
+            Ok(path) => {
+                match file_to_string(path.as_path()) {
+                    Ok(data) => {
+                        match serde_yaml::from_str(&data) {
+                            Ok(host) => {
+                                let mut map: Map<String, Host> = host;
+                                hosts.append(&mut map)
+                            }
+                            Err(err) => warn!("can not parse host from file {:?}: {}", path.as_path(), err),
+                        }
+                    }
+                    Err(err) => warn!("can not read file: {}", err),
+                }
+            }
+            Err(err) => warn!("can not read path from glob: {}", err),
+        }
+    }
+
+    return hosts;
+}
+
+fn file_to_string(filepath: &Path) -> Result<String> {
+    let mut s = String::new();
+    let mut f = try!(File::open(filepath));
+    try!(f.read_to_string(&mut s));
+
+    Ok(s)
 }

@@ -36,7 +36,7 @@ struct Filter {
 }
 
 impl Filter {
-    pub fn new() -> Filter {
+    fn new() -> Filter {
         Filter {
             environment: String::new(),
             id: String::new(),
@@ -51,4 +51,73 @@ impl Filter {
             ipv4: Ipv4Addr::new(0, 0, 0, 0),
         }
     }
+}
+
+fn filter_host(host: &Host, filter: &Filter) -> bool {
+    let mut filters: Vec<bool> = vec!(
+        empty_or_matching(&host.environment, &filter.environment),
+        empty_or_matching(&host.os_family, &filter.os_family),
+        empty_or_matching(&host.productname, &filter.productname),
+        empty_or_matching(&host.realm, &filter.realm),
+        empty_or_matching(&host.saltversion, &filter.saltversion),
+        empty_or_matching(&host.saltmaster, &filter.saltmaster),
+        empty_or_matching_ipv4(&host.ipv4, &filter.ipv4),
+        );
+
+    match filter.roles_mode.as_str() {
+        "all" => filters.push(contains_all(&host.roles, &filter.roles)),
+        "one" => filters.push(contains_one(&host.roles, &filter.roles)),
+        _ => filters.push(contains_all(&host.roles, &filter.roles)),
+    }
+
+    filters.iter()
+        .fold(true, |acc, &x| acc && x)
+}
+
+fn contains_one<T: std::cmp::PartialEq>(source: &Vec<T>, search: &Vec<T>) -> bool {
+    if search.len() == 0 {
+        return true;
+    }
+
+    for entry in search {
+        if source.contains(&entry) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+fn contains_all<T: std::cmp::PartialEq>(source: &Vec<T>, search: &Vec<T>) -> bool {
+    if search.len() == 0 {
+        return true;
+    }
+
+    let mut vec = Vec::new();
+    for entry in search {
+        if source.contains(&entry) {
+            vec.push(true);
+        } else {
+            vec.push(false);
+        }
+    }
+
+    vec.iter()
+        .fold(true, |acc, &x| acc && x)
+}
+
+fn empty_or_matching_ipv4(value: &Vec<Ipv4Addr>, filter: &Ipv4Addr) -> bool {
+    if filter == &Ipv4Addr::new(0, 0, 0, 0) {
+        return true;
+    }
+
+    return contains_one(value, &vec![filter.clone()]);
+}
+
+fn empty_or_matching(value: &String, filter: &String) -> bool {
+    if filter == "" {
+        return true;
+    }
+
+    return value == filter;
 }

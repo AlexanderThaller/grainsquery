@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct Warning {
     noenvironment: bool,
     norealm: bool,
@@ -29,14 +29,24 @@ struct Warning {
     noipv6: bool,
 }
 
-impl Warning {
-    pub fn new() -> Warning {
-        Warning {
-            noenvironment: true,
-            norealm: true,
-            noroles: true,
-            nosaltmaster: true,
-            noipv6: true,
-        }
+fn warn_host(host: &Host, warning: &Warning) {
+    if warning.noenvironment && host.environment.is_empty() {
+        warn!("host {} has no environment", host)
+    }
+
+    if warning.norealm && host.realm.is_empty() {
+        warn!("host {} has no realm", host)
+    }
+
+    if warning.noroles && host.roles.is_empty() {
+        warn!("host {} has no roles", host)
+    }
+
+    if warning.nosaltmaster && host.saltmaster.is_empty() {
+        warn!("host {} has no saltmaster", host)
+    }
+
+    if warning.noipv6 && host.ipv6.is_empty() {
+        warn!("host {} has no ipv6", host)
     }
 }
