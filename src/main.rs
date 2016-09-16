@@ -53,6 +53,7 @@ use std::net::Ipv6Addr;
 use std::path::Path;
 use std::path::PathBuf;
 use std::vec::Vec;
+use std::str::FromStr;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct Cache {
@@ -271,6 +272,7 @@ struct Filter {
     roles_mode: String,
     saltversion: String,
     saltmaster: String,
+    ipv4: Ipv4Addr,
 }
 
 impl Filter {
@@ -286,6 +288,7 @@ impl Filter {
             roles: Vec::new(),
             roles_mode: String::new(),
             saltmaster: String::new(),
+            ipv4: Ipv4Addr::new(0, 0, 0, 0),
         }
     }
 }
@@ -376,6 +379,8 @@ fn main() {
         roles_mode: String::from(matches.value_of("filter_roles_mode").unwrap_or("one")),
         saltversion: String::from(matches.value_of("filter_saltversion").unwrap_or("")),
         saltmaster: String::from(matches.value_of("filter_saltmaster").unwrap_or("")),
+        ipv4: Ipv4Addr::from_str(matches.value_of("filter_ip").unwrap_or(""))
+            .unwrap_or(Ipv4Addr::new(0, 0, 0, 0)),
         ..Filter::new()
     };
 
@@ -386,7 +391,10 @@ fn main() {
             .unwrap_or(true),
         norealm: matches.value_of("warn_norealm").unwrap_or("true").parse().unwrap_or(true),
         noroles: matches.value_of("warn_noroles").unwrap_or("true").parse().unwrap_or(true),
-        nosaltmaster: matches.value_of("warn_nosaltmaster").unwrap_or("true").parse().unwrap_or(true),
+        nosaltmaster: matches.value_of("warn_nosaltmaster")
+            .unwrap_or("true")
+            .parse()
+            .unwrap_or(true),
         ..Warning::new()
     };
 
@@ -705,8 +713,19 @@ fn render_filter(filter: &Filter) -> String {
                         value_or_default_vec(filter.roles.clone(), String::from("-")));
     let saltversion = format!("Salt Version:: `{}`",
                               value_or_default(filter.saltversion.clone(), String::from("-")));
+    let saltmaster = format!("Saltmaster :: `{}`",
+                             value_or_default(filter.saltmaster.clone(), String::from("-")));
+    let ipv4 = format!("IPv4 :: `{}`",
+                       match (filter.ipv4.octets()[0],
+                              filter.ipv4.octets()[1],
+                              filter.ipv4.octets()[2],
+                              filter.ipv4.octets()[3]) {
+                           (0, 0, 0, 0) => "-".into(),
+                           _ => format!("{}", filter.ipv4),
 
-    format!("{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
+                       });
+
+    format!("{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
             realm,
             environment,
             roles,
@@ -714,7 +733,9 @@ fn render_filter(filter: &Filter) -> String {
             id_inverse,
             os_family,
             productname,
-            saltversion)
+            saltversion,
+            saltmaster,
+            ipv4)
 }
 
 fn value_or_default_vec(value: Vec<String>, fallback: String) -> String {
@@ -843,6 +864,7 @@ fn filter_host(host: &Host, filter: &Filter) -> bool {
         empty_or_matching(&host.realm, &filter.realm),
         empty_or_matching(&host.saltversion, &filter.saltversion),
         empty_or_matching(&host.saltmaster, &filter.saltmaster),
+        empty_or_matching_ipv4(&host.ipv4, &filter.ipv4),
         contains_one(&host.roles, &filter.roles),
         );
 
@@ -862,6 +884,14 @@ fn contains_one<T: std::cmp::PartialEq>(source: &Vec<T>, search: &Vec<T>) -> boo
     }
 
     return false;
+}
+
+fn empty_or_matching_ipv4(value: &Vec<Ipv4Addr>, filter: &Ipv4Addr) -> bool {
+    if filter == &Ipv4Addr::new(0, 0, 0, 0) {
+        return true;
+    }
+
+    return contains_one(value, &vec![filter.clone()]);
 }
 
 fn empty_or_matching(value: &String, filter: &String) -> bool {
