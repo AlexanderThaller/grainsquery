@@ -93,7 +93,10 @@ struct Host {
 
 impl fmt::Display for Host {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} ({:?})", self.id, self.ipv4)
+        match self.get_reachable_ip() {
+            Some(ip) => write!(f, "{} ({:?})", self.id, ip),
+            None => write!(f, "{} ({:?})", self.id, self.ipv4),
+        }
     }
 }
 
@@ -290,6 +293,7 @@ struct Warning {
     noenvironment: bool,
     norealm: bool,
     noroles: bool,
+    nosaltmaster: bool,
 }
 
 impl Warning {
@@ -298,6 +302,7 @@ impl Warning {
             noenvironment: true,
             norealm: true,
             noroles: true,
+            nosaltmaster: true,
         }
     }
 }
@@ -378,6 +383,7 @@ fn main() {
             .unwrap_or(true),
         norealm: matches.value_of("warn_norealm").unwrap_or("true").parse().unwrap_or(true),
         noroles: matches.value_of("warn_noroles").unwrap_or("true").parse().unwrap_or(true),
+        nosaltmaster: matches.value_of("warn_nosaltmaster").unwrap_or("true").parse().unwrap_or(true),
         ..Warning::new()
     };
 
@@ -819,6 +825,10 @@ fn warn_host(host: &Host, warning: &Warning) {
 
     if warning.noroles && host.roles.is_empty() {
         warn!("host {} has no roles", host)
+    }
+
+    if warning.nosaltmaster && host.saltmaster.is_empty() {
+        warn!("host {} has no saltmaster", host)
     }
 }
 

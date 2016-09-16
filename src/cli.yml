@@ -134,6 +134,11 @@ subcommands:
             long: warn.noroles
             takes_value: true
             value_name: bool
+        - warn_nosaltmaster:
+            help: warn about minions that don't have a saltmaster set
+            long: warn.nosaltmaster
+            takes_value: true
+            value_name: bool
   - list:
       about: show minions which where parsed from the grains
   - ssh_hosts:
