@@ -42,7 +42,7 @@ use clap::App;
 use glob::glob;
 use log::LogLevel;
 use regex::Regex;
-use std::collections::BTreeMap;
+use std::collections::BTreeMap as Map;
 use std::env;
 use std::fmt;
 use std::fs::File;
@@ -58,7 +58,7 @@ use std::str::FromStr;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct Cache {
     gitcommit: String,
-    hosts: BTreeMap<String, Host>,
+    hosts: Map<String, Host>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -416,7 +416,7 @@ fn main() {
     // the regex crate)
     let id_regex = Regex::new(filter.id.as_str()).unwrap();
 
-    let hosts: BTreeMap<_, _> = hosts.iter()
+    let hosts: Map<_, _> = hosts.iter()
         .filter(|&(_, host)| filter_host(host, &filter))
         .filter(|&(_, host)| id_regex.is_match(host.id.as_str()))
         .collect();
@@ -444,7 +444,7 @@ fn main() {
     }
 }
 
-fn render_ssh_hosts(hosts: BTreeMap<&String, &Host>, prefix: &str) {
+fn render_ssh_hosts(hosts: Map<&String, &Host>, prefix: &str) {
     let host_prefix = match prefix {
         "" => String::from(""),
         _ => String::from(prefix) + ".",
@@ -462,7 +462,7 @@ fn render_ssh_hosts(hosts: BTreeMap<&String, &Host>, prefix: &str) {
     }
 }
 
-fn render_report(hosts: BTreeMap<&String, &Host>,
+fn render_report(hosts: Map<&String, &Host>,
                  filter: Filter,
                  folder: &Path,
                  generate_hosts: bool) {
@@ -494,7 +494,7 @@ fn render_report(hosts: BTreeMap<&String, &Host>,
     println!("");
 
     println!("== Realms");
-    let mut realms: BTreeMap<String, u32> = BTreeMap::default();
+    let mut realms: Map<String, u32> = Map::default();
     for (_, host) in hosts.iter() {
         *realms.entry(host.realm.clone()).or_insert(0) += 1;
     }
@@ -504,7 +504,7 @@ fn render_report(hosts: BTreeMap<&String, &Host>,
     println!("");
 
     println!("== Environments");
-    let mut environments: BTreeMap<String, u32> = BTreeMap::default();
+    let mut environments: Map<String, u32> = Map::default();
     for (_, host) in hosts.iter() {
         *environments.entry(host.environment.clone()).or_insert(0) += 1;
     }
@@ -514,7 +514,7 @@ fn render_report(hosts: BTreeMap<&String, &Host>,
     println!("");
 
     println!("== Salt Versions");
-    let mut salts: BTreeMap<String, u32> = BTreeMap::default();
+    let mut salts: Map<String, u32> = Map::default();
     for (_, host) in hosts.iter() {
         *salts.entry(host.saltversion.clone()).or_insert(0) += 1;
     }
@@ -524,7 +524,7 @@ fn render_report(hosts: BTreeMap<&String, &Host>,
     println!("");
 
     println!("== Saltmaster");
-    let mut saltmaster: BTreeMap<String, u32> = BTreeMap::default();
+    let mut saltmaster: Map<String, u32> = Map::default();
     for (_, host) in hosts.iter() {
         *saltmaster.entry(host.saltmaster.clone()).or_insert(0) += 1;
     }
@@ -534,7 +534,7 @@ fn render_report(hosts: BTreeMap<&String, &Host>,
     println!("");
 
     println!("== Products");
-    let mut products: BTreeMap<String, u32> = BTreeMap::default();
+    let mut products: Map<String, u32> = Map::default();
     for (_, host) in hosts.iter() {
         let filtered = filter_lines_beginning_with(&host.productname, "#");
         *products.entry(filtered).or_insert(0) += 1;
@@ -545,7 +545,7 @@ fn render_report(hosts: BTreeMap<&String, &Host>,
     println!("");
 
     println!("== Roles");
-    let mut roles: BTreeMap<String, u32> = BTreeMap::default();
+    let mut roles: Map<String, u32> = Map::default();
     for (_, host) in hosts.iter() {
         for role in host.roles.iter() {
             *roles.entry(role.clone()).or_insert(0) += 1;
@@ -558,7 +558,7 @@ fn render_report(hosts: BTreeMap<&String, &Host>,
 
     println!("== OS");
     println!("=== OS Family");
-    let mut os_families: BTreeMap<String, u32> = BTreeMap::default();
+    let mut os_families: Map<String, u32> = Map::default();
     for (_, host) in hosts.iter() {
         *os_families.entry(host.os_family.clone()).or_insert(0) += 1;
     }
@@ -568,7 +568,7 @@ fn render_report(hosts: BTreeMap<&String, &Host>,
     println!("");
 
     println!("=== OS");
-    let mut os: BTreeMap<String, u32> = BTreeMap::default();
+    let mut os: Map<String, u32> = Map::default();
     for (_, host) in hosts.iter() {
         *os.entry(host.get_full_os()).or_insert(0) += 1;
     }
@@ -578,7 +578,7 @@ fn render_report(hosts: BTreeMap<&String, &Host>,
     println!("");
 
     println!("=== Kernel Family");
-    let mut kernel_families: BTreeMap<String, u32> = BTreeMap::default();
+    let mut kernel_families: Map<String, u32> = Map::default();
     for (_, host) in hosts.iter() {
         *kernel_families.entry(host.kernel.clone()).or_insert(0) += 1;
     }
@@ -588,7 +588,7 @@ fn render_report(hosts: BTreeMap<&String, &Host>,
     println!("");
 
     println!("=== Kernel");
-    let mut kernels: BTreeMap<String, u32> = BTreeMap::default();
+    let mut kernels: Map<String, u32> = Map::default();
     for (_, host) in hosts.iter() {
         *kernels.entry(host.get_full_kernel()).or_insert(0) += 1;
     }
@@ -598,7 +598,7 @@ fn render_report(hosts: BTreeMap<&String, &Host>,
     println!("");
 
     println!("=== IPs");
-    let mut ips: BTreeMap<String, u32> = BTreeMap::default();
+    let mut ips: Map<String, u32> = Map::default();
     for (_, host) in hosts.iter() {
         if host.ipv4.len() != 0 {
             *ips.entry("IPv4".into()).or_insert(0) += 1;
@@ -687,7 +687,7 @@ fn filter_lines_beginning_with(lines: &String, beginning: &str) -> String {
     out
 }
 
-fn render_key_value_list(list: &BTreeMap<String, u32>,
+fn render_key_value_list(list: &Map<String, u32>,
                          header_key: String,
                          header_value: String)
                          -> String {
@@ -764,7 +764,7 @@ fn parse_hosts_or_use_cache(folder: &Path,
                             cachefile: &Path,
                             usecache: bool,
                             cache_force_refresh: bool)
-                            -> BTreeMap<String, Host> {
+                            -> Map<String, Host> {
     if usecache {
         debug!("use cache");
         if !cache_force_refresh && cachefile.exists() {
@@ -935,14 +935,14 @@ fn empty_or_matching(value: &String, filter: &String) -> bool {
     return value == filter;
 }
 
-fn parse_hosts_from_folder(folder: &Path) -> BTreeMap<String, Host> {
-    let mut hosts: BTreeMap<String, Host> = BTreeMap::new();
+fn parse_hosts_from_folder(folder: &Path) -> Map<String, Host> {
+    let mut hosts: Map<String, Host> = Map::new();
 
     let files = format!("{}/*.yaml", folder.display());
     for entry in glob(files.as_str()).expect("Failed to read glob pattern") {
         let host = match entry {
             Ok(path) => host_from_file(path.as_path()),
-            Err(_) => BTreeMap::new(),
+            Err(_) => Map::new(),
         };
 
         for (name, hostdata) in host {
@@ -961,7 +961,7 @@ fn file_to_string(filepath: &Path) -> Result<String> {
     Ok(s)
 }
 
-fn host_from_file(filepath: &Path) -> BTreeMap<String, Host> {
+fn host_from_file(filepath: &Path) -> Map<String, Host> {
     let data = file_to_string(filepath).unwrap();
 
     match serde_yaml::from_str(&data) {
@@ -970,7 +970,7 @@ fn host_from_file(filepath: &Path) -> BTreeMap<String, Host> {
             error!("can not parse grains for file {}: {}",
                    filepath.file_name().unwrap().to_str().unwrap(),
                    err);
-            BTreeMap::<String, Host>::new()
+            Map::<String, Host>::new()
         }
     }
 }
