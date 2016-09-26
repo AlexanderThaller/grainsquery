@@ -31,6 +31,7 @@ use std::fmt;
 use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 use std::vec::Vec;
+use std::collections::BTreeMap as Map;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Host {
@@ -61,6 +62,8 @@ pub struct Host {
     pub saltmaster: String,
     #[serde(default)]
     pub saltversion: String,
+    #[serde(default)]
+    pub trivago_applications: Map<String, Vec<String>>,
 }
 
 impl fmt::Display for Host {
