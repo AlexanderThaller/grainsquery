@@ -140,9 +140,9 @@ subcommands:
   - report:
       about: generate a report out the grain files
       args:
-        - generate_hosts:
+        - report_hosts:
             help: if false the list of hosts will not be generated
-            long: generate.hosts
+            long: report.hosts
             takes_value: true
             value_name: bool
   - validate:

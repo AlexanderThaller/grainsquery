@@ -152,9 +152,9 @@ fn main() {
         matches.value_of("cache_force_refresh").unwrap_or("false").parse().unwrap_or(false);
     debug!("cache_force_refresh:: {}", cache_force_refresh);
 
-    let generate_hosts: bool =
-        matches.value_of("generate_hosts").unwrap_or("true").parse().unwrap_or(true);
-    debug!("generate_hosts: {}", generate_hosts);
+    let report_hosts: bool =
+        matches.value_of("report_hosts").unwrap_or("true").parse().unwrap_or(true);
+    debug!("report_hosts: {}", report_hosts);
 
     let filter = Filter {
         environment: String::from(matches.value_of("filter_environment").unwrap_or("")),
@@ -220,7 +220,7 @@ fn main() {
                         warn_host(host, &warning)
                     }
                 }
-                "report" => render_report(hosts, filter, folder, generate_hosts),
+                "report" => render_report(hosts, filter, folder, report_hosts),
                 "ssh_hosts" => {
                     let prefix = matches.value_of("hosts_prefix").unwrap_or("");
                     render_ssh_hosts(hosts, prefix);
@@ -250,7 +250,7 @@ fn render_ssh_hosts(hosts: Map<&String, &Host>, prefix: &str) {
     }
 }
 
-fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, generate_hosts: bool) {
+fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, report_hosts: bool) {
     let header = include_str!("report.header.asciidoc");
 
     println!("{}", header);
@@ -383,7 +383,7 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, gene
              render_key_value_list(&ips, "Version".into(), "Count".into()));
     println!("");
 
-    if !generate_hosts {
+    if !report_hosts {
         return;
     }
 
