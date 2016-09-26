@@ -401,6 +401,13 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
             println!("\n==== Roles\n{}", render_list(&host.roles));
         }
 
+        if host.trivago_applications.len() != 0 {
+            println!("==== Applications");
+            for (apptype, apps) in &host.trivago_applications {
+                println!("===== {}\n{}", apptype, render_list(&apps));
+            }
+        }
+
         println!("==== IPs");
         match host.get_reachable_ip() {
             Some(ip) => println!("Reachable:: `{}`", ip),
