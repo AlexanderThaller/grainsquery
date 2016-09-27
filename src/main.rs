@@ -119,10 +119,9 @@ fn main() {
     };
 
     let loglevel: LogLevel = matches.value_of("log_level")
-        .unwrap_or("warn")
+        .unwrap_or("debug")
         .parse()
         .unwrap_or(LogLevel::Warn);
-
     loggerv::init_with_level(loglevel).unwrap();
 
     debug!("starting");
@@ -674,6 +673,7 @@ fn filter_host(host: &Host, filter: &Filter) -> bool {
         empty_or_matching(&host.saltversion, &filter.saltversion),
         empty_or_matching(&host.saltmaster, &filter.saltmaster),
         empty_or_matching_ipv4(&host.ipv4, &filter.ipv4),
+        filter_check_applications(&host.applications, &filter)
         );
 
     match filter.roles_mode.as_str() {
@@ -681,6 +681,32 @@ fn filter_host(host: &Host, filter: &Filter) -> bool {
         "one" => filters.push(contains_one(&host.roles, &filter.roles)),
         _ => filters.push(contains_all(&host.roles, &filter.roles)),
     }
+
+    debug!("host filters: {:?}", filters);
+
+    filters.iter()
+        .fold(true, |acc, &x| acc && x)
+}
+
+fn filter_check_applications(applications: &Map<String, Vec<String>>, filter: &Filter) -> bool {
+    if filter.applications.len() != 0 && applications.len() == 0 {
+        return false
+    }
+
+    let mut filters: Vec<bool> = Vec::new();
+
+    for (apptype, names) in applications {
+        let apps = names.into_iter().map(|name| format!("{}:{}", apptype, name)).collect();
+        debug!("apps: {:?}", apps);
+
+        match filter.applications_mode.as_str() {
+            "all" => filters.push(contains_all(&apps, &filter.applications)),
+            "one" => filters.push(contains_one(&apps, &filter.applications)),
+            _ => filters.push(contains_all(&apps, &filter.applications)),
+        }
+    }
+
+    debug!("app filters: {:?}", filters);
 
     filters.iter()
         .fold(true, |acc, &x| acc && x)
