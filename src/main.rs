@@ -119,7 +119,7 @@ fn main() {
     };
 
     let loglevel: LogLevel = matches.value_of("log_level")
-        .unwrap_or("debug")
+        .unwrap_or("warn")
         .parse()
         .unwrap_or(LogLevel::Warn);
     loggerv::init_with_level(loglevel).unwrap();
@@ -160,8 +160,10 @@ fn main() {
     debug!("report_hosts: {}", report_hosts);
 
     let filter = Filter {
-        applications: values_t!(matches.values_of("filter_applications"), String).unwrap_or(Vec::new()),
-        applications_mode: String::from(matches.value_of("filter_applications_mode").unwrap_or("one")),
+        applications: values_t!(matches.values_of("filter_applications"), String)
+            .unwrap_or(Vec::new()),
+        applications_mode: String::from(matches.value_of("filter_applications_mode")
+            .unwrap_or("one")),
         environment: String::from(matches.value_of("filter_environment").unwrap_or("")),
         id_inverse: matches.value_of("filter_id_inverse")
             .unwrap_or("false")
@@ -325,6 +327,20 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
     for (_, host) in hosts.iter() {
         for role in host.roles.iter() {
             *roles.entry(role.clone()).or_insert(0) += 1;
+        }
+    }
+    println!("Total:: {}", roles.len());
+    println!("\n{}",
+             render_key_value_list(&roles, "Salt Version".into(), "Count".into()));
+    println!("");
+
+    println!("== Applications");
+    let mut roles: Map<String, u32> = Map::default();
+    for (_, host) in hosts.iter() {
+        for (apptype, names) in &host.applications {
+            for name in names {
+                *roles.entry(format!("{}:{}", apptype, name)).or_insert(0) += 1;
+            }
         }
     }
     println!("Total:: {}", roles.len());
@@ -665,16 +681,14 @@ fn file_to_string(filepath: &Path) -> Result<String> {
 }
 
 fn filter_host(host: &Host, filter: &Filter) -> bool {
-    let mut filters: Vec<bool> = vec!(
-        empty_or_matching(&host.environment, &filter.environment),
-        empty_or_matching(&host.os_family, &filter.os_family),
-        empty_or_matching(&host.productname, &filter.productname),
-        empty_or_matching(&host.realm, &filter.realm),
-        empty_or_matching(&host.saltversion, &filter.saltversion),
-        empty_or_matching(&host.saltmaster, &filter.saltmaster),
-        empty_or_matching_ipv4(&host.ipv4, &filter.ipv4),
-        filter_check_applications(&host.applications, &filter)
-        );
+    let mut filters: Vec<bool> = vec![empty_or_matching(&host.environment, &filter.environment),
+                                      empty_or_matching(&host.os_family, &filter.os_family),
+                                      empty_or_matching(&host.productname, &filter.productname),
+                                      empty_or_matching(&host.realm, &filter.realm),
+                                      empty_or_matching(&host.saltversion, &filter.saltversion),
+                                      empty_or_matching(&host.saltmaster, &filter.saltmaster),
+                                      empty_or_matching_ipv4(&host.ipv4, &filter.ipv4),
+                                      filter_check_applications(&host.applications, &filter)];
 
     match filter.roles_mode.as_str() {
         "all" => filters.push(contains_all(&host.roles, &filter.roles)),
@@ -690,7 +704,7 @@ fn filter_host(host: &Host, filter: &Filter) -> bool {
 
 fn filter_check_applications(applications: &Map<String, Vec<String>>, filter: &Filter) -> bool {
     if filter.applications.len() != 0 && applications.len() == 0 {
-        return false
+        return false;
     }
 
     let mut filters: Vec<bool> = Vec::new();
