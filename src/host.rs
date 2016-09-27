@@ -62,8 +62,8 @@ pub struct Host {
     pub saltmaster: String,
     #[serde(default)]
     pub saltversion: String,
-    #[serde(default)]
-    pub trivago_applications: Map<String, Vec<String>>,
+    #[serde(default, rename = "trivago_applications")]
+    pub applications: Map<String, Vec<String>>,
 }
 
 impl fmt::Display for Host {

@@ -117,6 +117,20 @@ args:
         takes_value: true
         global: true
         value_name: environment
+    - filter_applications:
+        help: filter out all minions that don't have the given application
+        long: filter.application
+        short: a
+        takes_value: true
+        global: true
+        value_name: environment
+    - filter_applications_mode:
+        help: the mode of the application filter which specifies if you want all
+          minions that have one of the given application or all application (default is one)
+        long: filter.application.mode
+        takes_value: true
+        global: true
+        value_name: mode
     - cache_file:
         help: file to use for caching the result of the grains file parsing
         long: cache.file

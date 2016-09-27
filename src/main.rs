@@ -63,22 +63,26 @@ struct Cache {
 
 #[derive(Debug)]
 struct Filter {
+    applications_mode: String,
+    applications: Vec<String>,
     environment: String,
     id_inverse: bool,
     id: String,
+    ipv4: Ipv4Addr,
     os_family: String,
     productname: String,
     realm: String,
-    roles: Vec<String>,
     roles_mode: String,
-    saltversion: String,
+    roles: Vec<String>,
     saltmaster: String,
-    ipv4: Ipv4Addr,
+    saltversion: String,
 }
 
 impl Default for Filter {
     fn default() -> Filter {
         Filter {
+            applications: Vec::new(),
+            applications_mode: String::new(),
             environment: String::new(),
             id: String::new(),
             id_inverse: false,
@@ -157,6 +161,8 @@ fn main() {
     debug!("report_hosts: {}", report_hosts);
 
     let filter = Filter {
+        applications: values_t!(matches.values_of("filter_applications"), String).unwrap_or(Vec::new()),
+        applications_mode: String::from(matches.value_of("filter_applications_mode").unwrap_or("one")),
         environment: String::from(matches.value_of("filter_environment").unwrap_or("")),
         id_inverse: matches.value_of("filter_id_inverse")
             .unwrap_or("false")
@@ -401,9 +407,9 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
             println!("\n==== Roles\n{}", render_list(&host.roles));
         }
 
-        if host.trivago_applications.len() != 0 {
+        if host.applications.len() != 0 {
             println!("==== Applications");
-            for (apptype, apps) in &host.trivago_applications {
+            for (apptype, apps) in &host.applications {
                 println!("===== {}\n{}", apptype, render_list(&apps));
             }
         }
