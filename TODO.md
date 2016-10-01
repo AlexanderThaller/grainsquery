@@ -10,4 +10,3 @@
   to validate
 * Allow to only report for example saltmasters or kernels to make viewing the
   existing options easier
-* Check if value from 'master' field is salt in validation 
