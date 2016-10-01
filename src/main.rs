@@ -105,6 +105,7 @@ struct Warning {
     noroles: bool,
     nosaltmaster: bool,
     noipv6: bool,
+    different_master: bool,
 }
 
 fn main() {
@@ -194,6 +195,10 @@ fn main() {
             .parse()
             .unwrap_or(true),
         noipv6: matches.value_of("warn_noipv6")
+            .unwrap_or("true")
+            .parse()
+            .unwrap_or(true),
+        different_master: matches.value_of("different_master")
             .unwrap_or("true")
             .parse()
             .unwrap_or(true),
@@ -793,5 +798,10 @@ fn warn_host(host: &Host, warning: &Warning) {
 
     if warning.noipv6 && host.ipv6.is_empty() {
         warn!("host {} has no ipv6", host)
+    }
+
+    if warning.different_master && host.master != "salt" {
+        trace!("saltmaster: {}", host.master);
+        warn!("host {} has a different salt master: {}", host, host.master)
     }
 }

@@ -187,6 +187,11 @@ subcommands:
             long: warn.noipv6
             takes_value: true
             value_name: bool
+        - warn_different_master:
+            help: warn about minions that have a different salt master in their config
+            long: warn.different_master
+            takes_value: true
+            value_name: bool
   - list:
       about: show minions which where parsed from the grains
   - ssh_hosts:
