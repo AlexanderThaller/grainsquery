@@ -66,6 +66,8 @@ pub struct Host {
     pub applications: Map<String, Vec<String>>,
     #[serde(default)]
     pub master: String,
+    #[serde(default)]
+    pub hwaddr_interfaces: Map<String, String>
 }
 
 impl fmt::Display for Host {
