@@ -198,7 +198,7 @@ fn main() {
             .unwrap_or("true")
             .parse()
             .unwrap_or(true),
-        different_master: matches.value_of("different_master")
+        different_master: matches.value_of("warn_different_master")
             .unwrap_or("true")
             .parse()
             .unwrap_or(true),
@@ -339,6 +339,18 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
              render_key_value_list(&roles, "Salt Version".into(), "Count".into()));
     println!("");
 
+    println!("== Role Combinations");
+    let mut role_combinations: Map<String, u32> = Map::default();
+    for (_, host) in hosts.iter() {
+            let mut sort_roles = host.roles.to_vec();
+            sort_roles.sort();
+            *role_combinations.entry(render_list(&sort_roles)).or_insert(0) += 1;
+    }
+    println!("Total:: {}", roles.len());
+    println!("\n{}",
+             render_key_value_list(&role_combinations, "Combination".into(), "Count".into()));
+    println!("");
+
     println!("== Applications");
     let mut roles: Map<String, u32> = Map::default();
     for (_, host) in hosts.iter() {
@@ -469,7 +481,7 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
     }
 }
 
-fn render_list<A: std::fmt::Display>(list: &Vec<A>) -> String {
+fn render_list<A: std::fmt::Display + std::cmp::Ord>(list: &Vec<A>) -> String {
     let mut out = String::new();
 
     for line in list {
@@ -501,7 +513,7 @@ fn render_key_value_list(list: &Map<String, u32>,
         table.push_str(format!("|{}|{}\n", key, value).as_str());
     }
 
-    format!("[cols=\"2*\", options=\"header\"]\n|===\n|{}|{}\n{}|===",
+    format!("[cols=\"1a,1\", options=\"header\"]\n|===\n|{}|{}\n{}|===",
             header_key,
             header_value,
             table)

@@ -15,3 +15,4 @@
   repo with the salt grains
 * Count and report the number of role combinations across the minions
 * Move defaults for cli args to cli.yml
+* Filter by a list of minions (multiple `-i`)
