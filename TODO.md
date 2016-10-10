@@ -10,3 +10,8 @@
   to validate
 * Allow to only report for example saltmasters or kernels to make viewing the
   existing options easier
+* Put the salt_grains in the $XDG_DATA_HOME/grainsquery/salt_grains folder
+* Add git init and git update commands to initially clone the repo or update the
+  repo with the salt grains
+* Count and report the number of role combinations across the minions
+* Move defaults for cli args to cli.yml
