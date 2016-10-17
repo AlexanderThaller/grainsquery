@@ -235,7 +235,7 @@ fn main() {
                 "report" => render_report(hosts, filter, folder, report_hosts),
                 "ssh_hosts" => {
                     let prefix = matches.value_of("hosts_prefix").unwrap_or("");
-                    render_ssh_hosts(hosts, prefix);
+                    render_ssh_hosts(hosts, prefix, folder);
                 }
                 _ => println!("{:#?}", hosts),
             }
@@ -244,11 +244,16 @@ fn main() {
     }
 }
 
-fn render_ssh_hosts(hosts: Map<&String, &Host>, prefix: &str) {
+fn render_ssh_hosts(hosts: Map<&String, &Host>, prefix: &str, folder: &Path) {
     let host_prefix = match prefix {
         "" => String::from(""),
         _ => String::from(prefix) + ".",
     };
+
+    println!("# generated: {}", time::now().rfc3339());
+    println!("# git commit: {}", get_current_commit_for_grains(folder));
+    println!("# grainsquery version: {}", crate_version!());
+    println!("");
 
     for (id, host) in hosts {
         match host.get_reachable_ip() {
