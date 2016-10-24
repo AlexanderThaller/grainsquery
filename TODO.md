@@ -17,4 +17,6 @@
 * Filter by a list of minions (multiple `-i`)
 * Getip will get the carp ip which shoudnt happen also it gets 10.1.3.205
   instead for mgmg0 which is also wrong
-* Roles subcommand that will print all available roles
+* Roles subcommand that will print all available roles, realms, etc.
+* Filter by saltversion and use semver to parse the version so we can do nice
+  queries like version `2014.*` or something like that
