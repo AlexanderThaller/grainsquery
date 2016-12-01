@@ -20,9 +20,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#![feature(custom_derive, plugin)]
-#![plugin(serde_macros)]
-
 extern crate serde;
 extern crate serde_yaml;
 extern crate serde_json;
@@ -55,11 +52,7 @@ use std::vec::Vec;
 use std::str::FromStr;
 use host::Host;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct Cache {
-    gitcommit: String,
-    hosts: Map<String, Host>,
-}
+include!(concat!(env!("OUT_DIR"), "/main_types.rs"));
 
 #[derive(Debug)]
 struct Filter {
