@@ -32,5 +32,7 @@ pub struct Host {
     #[serde(default)]
     pub master: String,
     #[serde(default)]
-    pub hwaddr_interfaces: Map<String, String>
+    pub hwaddr_interfaces: Map<String, String>,
+    #[serde(default)]
+    pub serialnumber: String,
 }

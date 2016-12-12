@@ -433,6 +433,7 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
         println!("Operating System:: {}", host.get_full_os());
         println!("Kernel:: {}", host.get_full_kernel());
         println!("Product Name:: {}", host.productname);
+        println!("Serialnumber:: {}", host.serialnumber);
         if host.roles.len() != 0 {
             println!("\n==== Roles\n{}", render_list(&host.roles));
         }
