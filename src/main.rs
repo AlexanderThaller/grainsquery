@@ -69,6 +69,7 @@ struct Filter {
     roles: Vec<String>,
     saltmaster: String,
     saltversion: String,
+    serialnumber: String,
 }
 
 impl Default for Filter {
@@ -87,6 +88,7 @@ impl Default for Filter {
             roles_mode: String::new(),
             saltmaster: String::new(),
             ipv4: Ipv4Addr::new(0, 0, 0, 0),
+            serialnumber: String::new(),
         }
     }
 }
@@ -171,6 +173,7 @@ fn main() {
         roles_mode: String::from(matches.value_of("filter_roles_mode").unwrap_or("one")),
         saltversion: String::from(matches.value_of("filter_saltversion").unwrap_or("")),
         saltmaster: String::from(matches.value_of("filter_saltmaster").unwrap_or("")),
+        serialnumber: String::from(matches.value_of("filter_serialnumber").unwrap_or("")),
         ipv4: Ipv4Addr::from_str(matches.value_of("filter_ip").unwrap_or(""))
             .unwrap_or(Ipv4Addr::new(0, 0, 0, 0)),
         ..Filter::default()
@@ -531,6 +534,8 @@ fn render_filter(filter: &Filter) -> String {
                               value_or_default(filter.saltversion.clone(), String::from("-")));
     let saltmaster = format!("Saltmaster :: `{}`",
                              value_or_default(filter.saltmaster.clone(), String::from("-")));
+    let serialnumber = format!("Serialnumber:: `{}`",
+                               value_or_default(filter.serialnumber.clone(), String::from("-")));
     let ipv4 = format!("IPv4 :: `{}`",
                        match (filter.ipv4.octets()[0],
                               filter.ipv4.octets()[1],
@@ -541,7 +546,7 @@ fn render_filter(filter: &Filter) -> String {
 
                        });
 
-    format!("{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
+    format!("{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
             realm,
             environment,
             roles,
@@ -551,6 +556,7 @@ fn render_filter(filter: &Filter) -> String {
             productname,
             saltversion,
             saltmaster,
+            serialnumber,
             ipv4)
 }
 
@@ -694,6 +700,7 @@ fn filter_host(host: &Host, filter: &Filter) -> bool {
                                       empty_or_matching(&host.realm, &filter.realm),
                                       empty_or_matching(&host.saltversion, &filter.saltversion),
                                       empty_or_matching(&host.saltmaster, &filter.saltmaster),
+                                      empty_or_matching(&host.serialnumber, &filter.serialnumber),
                                       empty_or_matching_ipv4(&host.ipv4, &filter.ipv4),
                                       filter_check_applications(&host.applications, &filter)];
 

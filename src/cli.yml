@@ -133,6 +133,13 @@ args:
         takes_value: true
         global: true
         value_name: mode
+    - filter_serialnumber:
+        help: filter out all minions without the given serialnumber
+        long: filter.serialnumber
+        short: S
+        takes_value: true
+        global: true
+        value_name: serialnumber
     - cache_file:
         help: file to use for caching the result of the grains file parsing
         long: cache.file
