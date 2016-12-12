@@ -340,9 +340,9 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
     println!("== Role Combinations");
     let mut role_combinations: Map<String, u32> = Map::default();
     for (_, host) in hosts.iter() {
-            let mut sort_roles = host.roles.to_vec();
-            sort_roles.sort();
-            *role_combinations.entry(render_list(&sort_roles)).or_insert(0) += 1;
+        let mut sort_roles = host.roles.to_vec();
+        sort_roles.sort();
+        *role_combinations.entry(render_list(&sort_roles)).or_insert(0) += 1;
     }
     println!("Total:: {}", roles.len());
     println!("\n{}",
@@ -451,12 +451,7 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
         }
         println!("");
 
-        let lookups = vec![
-            "firewall",
-            "firewall:admin",
-            "firewall:backend",
-            "firewall:frontend",
-        ];
+        let lookups = vec!["firewall", "firewall:admin", "firewall:backend", "firewall:frontend"];
 
         println!("===== Lookup");
         for lookup in lookups {
@@ -567,11 +562,7 @@ fn value_or_default_vec(value: Vec<String>, fallback: String) -> String {
 }
 
 fn value_or_default(value: String, fallback: String) -> String {
-    if value == "" {
-        fallback
-    } else {
-        value
-    }
+    if value == "" { fallback } else { value }
 }
 
 fn parse_hosts_or_use_cache(folder: &Path,

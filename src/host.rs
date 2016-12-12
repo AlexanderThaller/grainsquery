@@ -180,12 +180,7 @@ impl Host {
     }
 
     pub fn get_reachable_ip(&self) -> Option<Ipv4Addr> {
-        let lookups = vec![
-            "firewall:frontend",
-            "firewall:admin",
-            "firewall:backend",
-            "firewall",
-        ];
+        let lookups = vec!["firewall:frontend", "firewall:admin", "firewall:backend", "firewall"];
 
         for lookup in lookups {
             let ip = self.get_ip(lookup);
