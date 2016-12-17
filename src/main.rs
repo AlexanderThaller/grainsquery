@@ -175,8 +175,7 @@ fn main() {
         saltmaster: String::from(matches.value_of("filter_saltmaster").unwrap_or("")),
         serialnumber: String::from(matches.value_of("filter_serialnumber").unwrap_or("")),
         ipv4: Ipv4Addr::from_str(matches.value_of("filter_ip").unwrap_or(""))
-            .unwrap_or(Ipv4Addr::new(0, 0, 0, 0)),
-        ..Filter::default()
+            .unwrap_or_else(|_| Ipv4Addr::new(0, 0, 0, 0)),
     };
 
     let warning = Warning {
@@ -203,7 +202,7 @@ fn main() {
     debug!("filter: {:#?}", filter);
     debug!("warning: {:#?}", warning);
 
-    let hosts = parse_hosts_or_use_cache(&folder, cachefile, usecache, cache_force_refresh);
+    let hosts = parse_hosts_or_use_cache(folder, cachefile, usecache, cache_force_refresh);
 
     debug!("Hosts Length: {}", hosts.len());
 
@@ -224,7 +223,7 @@ fn main() {
             match command.name.as_str() {
                 "list" => println!("{:#?}", hosts),
                 "validate" => {
-                    for (_, host) in hosts {
+                    for host in hosts.values() {
                         warn_host(host, &warning)
                     }
                 }
@@ -278,7 +277,7 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
     let mut kernels: Map<String, u32> = Map::default();
     let mut ips: Map<String, u32> = Map::default();
 
-    for (_, host) in hosts.iter() {
+    for host in hosts.values() {
         *realms.entry(host.realm.clone()).or_insert(0) += 1;
         *environments.entry(host.environment.clone()).or_insert(0) += 1;
         *salts.entry(host.saltversion.clone()).or_insert(0) += 1;
@@ -287,7 +286,7 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
         let filtered = filter_lines_beginning_with(&host.productname, "#");
         *products.entry(filtered).or_insert(0) += 1;
 
-        for role in host.roles.iter() {
+        for role in &host.roles {
             *roles.entry(role.clone()).or_insert(0) += 1;
         }
 
@@ -306,11 +305,11 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
         *kernel_families.entry(host.kernel.clone()).or_insert(0) += 1;
         *kernels.entry(host.get_full_kernel()).or_insert(0) += 1;
 
-        if host.ipv4.len() != 0 {
+        if host.ipv4.is_empty() {
             *ips.entry("IPv4".into()).or_insert(0) += 1;
         }
 
-        if host.ipv6.len() != 0 {
+        if host.ipv6.is_empty() {
             *ips.entry("IPv6".into()).or_insert(0) += 1;
         }
     }
@@ -424,11 +423,11 @@ fn render_report_hosts(hosts: Map<&String, &Host>) {
         println!("Kernel:: {}", host.get_full_kernel());
         println!("Product Name:: {}", host.productname);
         println!("Serialnumber:: {}", host.serialnumber);
-        if host.roles.len() != 0 {
+        if !host.roles.is_empty() {
             println!("\n==== Roles\n{}", render_list(&host.roles));
         }
 
-        if host.applications.len() != 0 {
+        if !host.applications.is_empty() {
             println!("==== Applications");
             for (apptype, apps) in &host.applications {
                 println!("===== {}\n{}", apptype, render_list(&apps));
@@ -436,9 +435,8 @@ fn render_report_hosts(hosts: Map<&String, &Host>) {
         }
 
         println!("==== IPs");
-        match host.get_reachable_ip() {
-            Some(ip) => println!("Reachable:: `{}`", ip),
-            None => {}
+        if let Some(ip) = host.get_reachable_ip() {
+            println!("Reachable:: `{}`", ip)
         }
         println!("");
 
@@ -446,19 +444,18 @@ fn render_report_hosts(hosts: Map<&String, &Host>) {
 
         println!("===== Lookup");
         for lookup in lookups {
-            match host.get_ip(lookup) {
-                Some(ip) => println!("{}:: `{}`", lookup, ip),
-                None => {}
+            if let Some(ip) = host.get_ip(lookup) {
+                println!("{}:: `{}`", lookup, ip)
             }
         }
 
         println!("");
 
-        if host.ipv4.len() != 0 {
+        if !host.ipv4.is_empty() {
             println!("===== IPv4\n{}", render_list(&host.ipv4));
         }
 
-        if host.ipv6.len() != 0 {
+        if !host.ipv6.is_empty() {
             println!("===== IPv6\n{}", render_list(&host.ipv6));
         }
 
@@ -475,10 +472,10 @@ fn render_list<A: std::fmt::Display + std::cmp::Ord>(list: &Vec<A>) -> String {
     out
 }
 
-fn filter_lines_beginning_with(lines: &String, beginning: &str) -> String {
+fn filter_lines_beginning_with(lines: &str, beginning: &str) -> String {
     let mut out = String::new();
 
-    for line in lines.split("\n") {
+    for line in lines.split('\n') {
         if !line.starts_with(beginning) {
             out.push_str(line);
         }
@@ -548,7 +545,7 @@ fn render_filter(filter: &Filter) -> String {
 }
 
 fn value_or_default_vec(value: Vec<String>, fallback: String) -> String {
-    if value.len() == 0 {
+    if value.is_empty() {
         fallback
     } else {
         value.join("* {}\n")
@@ -669,7 +666,7 @@ fn parse_hosts_from_folder(folder: &Path) -> Map<String, Host> {
         }
     }
 
-    return hosts;
+    hosts
 }
 
 fn file_to_string(filepath: &Path) -> Result<String> {
@@ -692,7 +689,6 @@ fn filter_host(host: &Host, filter: &Filter) -> bool {
                                       filter_check_applications(&host.applications, &filter)];
 
     match filter.roles_mode.as_str() {
-        "all" => filters.push(contains_all(&host.roles, &filter.roles)),
         "one" => filters.push(contains_one(&host.roles, &filter.roles)),
         _ => filters.push(contains_all(&host.roles, &filter.roles)),
     }
@@ -704,7 +700,7 @@ fn filter_host(host: &Host, filter: &Filter) -> bool {
 }
 
 fn filter_check_applications(applications: &Map<String, Vec<String>>, filter: &Filter) -> bool {
-    if filter.applications.len() != 0 && applications.len() == 0 {
+    if !filter.applications.is_empty() && applications.is_empty() {
         return false;
     }
 
@@ -715,7 +711,6 @@ fn filter_check_applications(applications: &Map<String, Vec<String>>, filter: &F
         debug!("apps: {:?}", apps);
 
         match filter.applications_mode.as_str() {
-            "all" => filters.push(contains_all(&apps, &filter.applications)),
             "one" => filters.push(contains_one(&apps, &filter.applications)),
             _ => filters.push(contains_all(&apps, &filter.applications)),
         }
@@ -728,27 +723,27 @@ fn filter_check_applications(applications: &Map<String, Vec<String>>, filter: &F
 }
 
 fn contains_one<T: std::cmp::PartialEq>(source: &Vec<T>, search: &Vec<T>) -> bool {
-    if search.len() == 0 {
+    if search.is_empty() {
         return true;
     }
 
     for entry in search {
-        if source.contains(&entry) {
+        if source.contains(entry) {
             return true;
         }
     }
 
-    return false;
+    false
 }
 
 fn contains_all<T: std::cmp::PartialEq>(source: &Vec<T>, search: &Vec<T>) -> bool {
-    if search.len() == 0 {
+    if search.is_empty() {
         return true;
     }
 
     let mut vec = Vec::new();
     for entry in search {
-        if source.contains(&entry) {
+        if source.contains(entry) {
             vec.push(true);
         } else {
             vec.push(false);
@@ -764,15 +759,15 @@ fn empty_or_matching_ipv4(value: &Vec<Ipv4Addr>, filter: &Ipv4Addr) -> bool {
         return true;
     }
 
-    return contains_one(value, &vec![filter.clone()]);
+    contains_one(value, &vec![filter.clone()])
 }
 
-fn empty_or_matching(value: &String, filter: &String) -> bool {
+fn empty_or_matching(value: &str, filter: &str) -> bool {
     if filter == "" {
         return true;
     }
 
-    return value == filter;
+    value == filter
 }
 
 fn warn_host(host: &Host, warning: &Warning) {
