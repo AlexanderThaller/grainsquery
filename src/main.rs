@@ -264,6 +264,57 @@ fn render_ssh_hosts(hosts: Map<&String, &Host>, prefix: &str, folder: &Path) {
 }
 
 fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, report_hosts: bool) {
+    let mut realms: Map<String, u32> = Map::default();
+    let mut environments: Map<String, u32> = Map::default();
+    let mut salts: Map<String, u32> = Map::default();
+    let mut saltmaster: Map<String, u32> = Map::default();
+    let mut products: Map<String, u32> = Map::default();
+    let mut roles: Map<String, u32> = Map::default();
+    let mut role_combinations: Map<String, u32> = Map::default();
+    let mut roles: Map<String, u32> = Map::default();
+    let mut os_families: Map<String, u32> = Map::default();
+    let mut os: Map<String, u32> = Map::default();
+    let mut kernel_families: Map<String, u32> = Map::default();
+    let mut kernels: Map<String, u32> = Map::default();
+    let mut ips: Map<String, u32> = Map::default();
+
+    for (_, host) in hosts.iter() {
+        *realms.entry(host.realm.clone()).or_insert(0) += 1;
+        *environments.entry(host.environment.clone()).or_insert(0) += 1;
+        *salts.entry(host.saltversion.clone()).or_insert(0) += 1;
+        *saltmaster.entry(host.saltmaster.clone()).or_insert(0) += 1;
+
+        let filtered = filter_lines_beginning_with(&host.productname, "#");
+        *products.entry(filtered).or_insert(0) += 1;
+
+        for role in host.roles.iter() {
+            *roles.entry(role.clone()).or_insert(0) += 1;
+        }
+
+        let mut sort_roles = host.roles.to_vec();
+        sort_roles.sort();
+        *role_combinations.entry(render_list(&sort_roles)).or_insert(0) += 1;
+
+        for (apptype, names) in &host.applications {
+            for name in names {
+                *roles.entry(format!("{}:{}", apptype, name)).or_insert(0) += 1;
+            }
+        }
+
+        *os_families.entry(host.os_family.clone()).or_insert(0) += 1;
+        *os.entry(host.get_full_os()).or_insert(0) += 1;
+        *kernel_families.entry(host.kernel.clone()).or_insert(0) += 1;
+        *kernels.entry(host.get_full_kernel()).or_insert(0) += 1;
+
+        if host.ipv4.len() != 0 {
+            *ips.entry("IPv4".into()).or_insert(0) += 1;
+        }
+
+        if host.ipv6.len() != 0 {
+            *ips.entry("IPv6".into()).or_insert(0) += 1;
+        }
+    }
+
     let header = include_str!("report.header.asciidoc");
 
     println!("{}", header);
@@ -278,89 +329,49 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
     println!("");
 
     println!("== Realms");
-    let mut realms: Map<String, u32> = Map::default();
-    for (_, host) in hosts.iter() {
-        *realms.entry(host.realm.clone()).or_insert(0) += 1;
-    }
+
     println!("Total:: {}", realms.len());
     println!("\n{}",
              render_key_value_list(&realms, "Realm".into(), "Count".into()));
     println!("");
 
     println!("== Environments");
-    let mut environments: Map<String, u32> = Map::default();
-    for (_, host) in hosts.iter() {
-        *environments.entry(host.environment.clone()).or_insert(0) += 1;
-    }
     println!("Total:: {}", environments.len());
     println!("\n{}",
              render_key_value_list(&environments, "Environment".into(), "Count".into()));
     println!("");
 
     println!("== Salt Versions");
-    let mut salts: Map<String, u32> = Map::default();
-    for (_, host) in hosts.iter() {
-        *salts.entry(host.saltversion.clone()).or_insert(0) += 1;
-    }
     println!("Total:: {}", salts.len());
     println!("\n{}",
              render_key_value_list(&salts, "Salt Version".into(), "Count".into()));
     println!("");
 
     println!("== Saltmaster");
-    let mut saltmaster: Map<String, u32> = Map::default();
-    for (_, host) in hosts.iter() {
-        *saltmaster.entry(host.saltmaster.clone()).or_insert(0) += 1;
-    }
     println!("Total:: {}", saltmaster.len());
     println!("\n{}",
              render_key_value_list(&saltmaster, "Master".into(), "Count".into()));
     println!("");
 
     println!("== Products");
-    let mut products: Map<String, u32> = Map::default();
-    for (_, host) in hosts.iter() {
-        let filtered = filter_lines_beginning_with(&host.productname, "#");
-        *products.entry(filtered).or_insert(0) += 1;
-    }
     println!("Total:: {}", products.len());
     println!("\n{}",
              render_key_value_list(&products, "Product".into(), "Count".into()));
     println!("");
 
     println!("== Roles");
-    let mut roles: Map<String, u32> = Map::default();
-    for (_, host) in hosts.iter() {
-        for role in host.roles.iter() {
-            *roles.entry(role.clone()).or_insert(0) += 1;
-        }
-    }
     println!("Total:: {}", roles.len());
     println!("\n{}",
              render_key_value_list(&roles, "Salt Version".into(), "Count".into()));
     println!("");
 
     println!("== Role Combinations");
-    let mut role_combinations: Map<String, u32> = Map::default();
-    for (_, host) in hosts.iter() {
-        let mut sort_roles = host.roles.to_vec();
-        sort_roles.sort();
-        *role_combinations.entry(render_list(&sort_roles)).or_insert(0) += 1;
-    }
     println!("Total:: {}", roles.len());
     println!("\n{}",
              render_key_value_list(&role_combinations, "Combination".into(), "Count".into()));
     println!("");
 
     println!("== Applications");
-    let mut roles: Map<String, u32> = Map::default();
-    for (_, host) in hosts.iter() {
-        for (apptype, names) in &host.applications {
-            for name in names {
-                *roles.entry(format!("{}:{}", apptype, name)).or_insert(0) += 1;
-            }
-        }
-    }
     println!("Total:: {}", roles.len());
     println!("\n{}",
              render_key_value_list(&roles, "Salt Version".into(), "Count".into()));
@@ -368,56 +379,30 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
 
     println!("== OS");
     println!("=== OS Family");
-    let mut os_families: Map<String, u32> = Map::default();
-    for (_, host) in hosts.iter() {
-        *os_families.entry(host.os_family.clone()).or_insert(0) += 1;
-    }
     println!("Total:: {}", os_families.len());
     println!("\n{}",
              render_key_value_list(&os_families, "OS Family".into(), "Count".into()));
     println!("");
 
     println!("=== OS");
-    let mut os: Map<String, u32> = Map::default();
-    for (_, host) in hosts.iter() {
-        *os.entry(host.get_full_os()).or_insert(0) += 1;
-    }
     println!("Total:: {}", os.len());
     println!("\n{}",
              render_key_value_list(&os, "OS".into(), "Count".into()));
     println!("");
 
     println!("=== Kernel Family");
-    let mut kernel_families: Map<String, u32> = Map::default();
-    for (_, host) in hosts.iter() {
-        *kernel_families.entry(host.kernel.clone()).or_insert(0) += 1;
-    }
     println!("Total:: {}", kernel_families.len());
     println!("\n{}",
              render_key_value_list(&kernel_families, "Kernel Family".into(), "Count".into()));
     println!("");
 
     println!("=== Kernel");
-    let mut kernels: Map<String, u32> = Map::default();
-    for (_, host) in hosts.iter() {
-        *kernels.entry(host.get_full_kernel()).or_insert(0) += 1;
-    }
     println!("Total:: {}", kernels.len());
     println!("\n{}",
              render_key_value_list(&kernels, "Kernel".into(), "Count".into()));
     println!("");
 
     println!("=== IPs");
-    let mut ips: Map<String, u32> = Map::default();
-    for (_, host) in hosts.iter() {
-        if host.ipv4.len() != 0 {
-            *ips.entry("IPv4".into()).or_insert(0) += 1;
-        }
-
-        if host.ipv6.len() != 0 {
-            *ips.entry("IPv6".into()).or_insert(0) += 1;
-        }
-    }
     println!("\n{}",
              render_key_value_list(&ips, "Version".into(), "Count".into()));
     println!("");
