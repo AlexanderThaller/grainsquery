@@ -70,6 +70,7 @@ struct Filter {
     saltmaster: String,
     saltversion: String,
     serialnumber: String,
+    isvirtual: String,
 }
 
 impl Default for Filter {
@@ -89,6 +90,7 @@ impl Default for Filter {
             saltmaster: String::new(),
             ipv4: Ipv4Addr::new(0, 0, 0, 0),
             serialnumber: String::new(),
+            isvirtual: String::new(),
         }
     }
 }
@@ -176,6 +178,7 @@ fn main() {
         serialnumber: String::from(matches.value_of("filter_serialnumber").unwrap_or("")),
         ipv4: Ipv4Addr::from_str(matches.value_of("filter_ip").unwrap_or(""))
             .unwrap_or_else(|_| Ipv4Addr::new(0, 0, 0, 0)),
+        isvirtual: String::from(matches.value_of("filter_isvirtual").unwrap_or("")),
     };
 
     let warning = Warning {
@@ -276,6 +279,7 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
     let mut kernel_families: Map<String, u32> = Map::default();
     let mut kernels: Map<String, u32> = Map::default();
     let mut ips: Map<String, u32> = Map::default();
+    let mut isvirtual: Map<String, u32> = Map::default();
 
     for host in hosts.values() {
         *realms.entry(host.realm.clone()).or_insert(0) += 1;
@@ -312,6 +316,8 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
         if host.ipv6.is_empty() {
             *ips.entry("IPv6".into()).or_insert(0) += 1;
         }
+
+        *isvirtual.entry(host.isvirtual.clone()).or_insert(0) += 1;
     }
 
     let header = include_str!("report.header.asciidoc");
@@ -404,6 +410,11 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
     println!("=== IPs");
     println!("\n{}",
              render_key_value_list(&ips, "Version".into(), "Count".into()));
+    println!("");
+
+    println!("=== Virtual");
+    println!("\n{}",
+             render_key_value_list(&isvirtual, "Virtual".into(), "Count".into()));
     println!("");
 
     if report_hosts {
@@ -529,8 +540,10 @@ fn render_filter(filter: &Filter) -> String {
                            _ => format!("{}", filter.ipv4),
 
                        });
+    let isvirtual = format!("Is Virtual:: `{}`",
+                            value_or_default(filter.isvirtual.clone(), String::from("-")));
 
-    format!("{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
+    format!("{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
             realm,
             environment,
             roles,
@@ -541,7 +554,8 @@ fn render_filter(filter: &Filter) -> String {
             saltversion,
             saltmaster,
             serialnumber,
-            ipv4)
+            ipv4,
+            isvirtual)
 }
 
 fn value_or_default_vec(value: Vec<String>, fallback: String) -> String {
@@ -686,6 +700,7 @@ fn filter_host(host: &Host, filter: &Filter) -> bool {
                                       empty_or_matching(&host.saltmaster, &filter.saltmaster),
                                       empty_or_matching(&host.serialnumber, &filter.serialnumber),
                                       empty_or_matching_ipv4(&host.ipv4, &filter.ipv4),
+                                      empty_or_matching(&host.isvirtual, &filter.isvirtual),
                                       filter_check_applications(&host.applications, &filter)];
 
     match filter.roles_mode.as_str() {

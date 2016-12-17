@@ -35,4 +35,6 @@ pub struct Host {
     pub hwaddr_interfaces: Map<String, String>,
     #[serde(default)]
     pub serialnumber: String,
+    #[serde(default, rename = "virtual")]
+    pub isvirtual: String,
 }

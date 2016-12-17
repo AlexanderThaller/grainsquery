@@ -140,6 +140,13 @@ args:
         takes_value: true
         global: true
         value_name: serialnumber
+    - filter_isvirtual:
+        help: filter out all minions without the given virtualization type
+        long: filter.virtual
+        short: V
+        takes_value: true
+        global: true
+        value_name: type
     - cache_file:
         help: file to use for caching the result of the grains file parsing
         long: cache.file
