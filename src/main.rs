@@ -271,7 +271,7 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
     let mut products: Map<String, u32> = Map::default();
     let mut roles: Map<String, u32> = Map::default();
     let mut role_combinations: Map<String, u32> = Map::default();
-    let mut roles: Map<String, u32> = Map::default();
+    let mut applications: Map<String, u32> = Map::default();
     let mut os_families: Map<String, u32> = Map::default();
     let mut os: Map<String, u32> = Map::default();
     let mut kernel_families: Map<String, u32> = Map::default();
@@ -297,7 +297,7 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
 
         for (apptype, names) in &host.applications {
             for name in names {
-                *roles.entry(format!("{}:{}", apptype, name)).or_insert(0) += 1;
+                *applications.entry(format!("{}:{}", apptype, name)).or_insert(0) += 1;
             }
         }
 
@@ -362,7 +362,7 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
     println!("== Roles");
     println!("Total:: {}", roles.len());
     println!("\n{}",
-             render_key_value_list(&roles, "Salt Version".into(), "Count".into()));
+             render_key_value_list(&roles, "Role".into(), "Count".into()));
     println!("");
 
     println!("== Role Combinations");
@@ -374,7 +374,7 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
     println!("== Applications");
     println!("Total:: {}", roles.len());
     println!("\n{}",
-             render_key_value_list(&roles, "Salt Version".into(), "Count".into()));
+             render_key_value_list(&applications, "Application".into(), "Count".into()));
     println!("");
 
     println!("== OS");
@@ -407,10 +407,12 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
              render_key_value_list(&ips, "Version".into(), "Count".into()));
     println!("");
 
-    if !report_hosts {
-        return;
+    if report_hosts {
+        render_report_hosts(hosts)
     }
+}
 
+fn render_report_hosts(hosts: Map<&String, &Host>) {
     println!("== Hosts");
     for (id, host) in hosts {
         println!("=== {}", id);
