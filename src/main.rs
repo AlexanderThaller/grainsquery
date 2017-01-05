@@ -213,10 +213,12 @@ fn main() {
     // host (see example-avoid-compiling-the-same-regex-in-a-loop in the rust documentation about
     // the regex crate)
     let id_regex = Regex::new(filter.id.as_str()).unwrap();
+    let saltversion_regex = Regex::new(filter.saltversion.as_str()).unwrap();
 
     let hosts: Map<_, _> = hosts.iter()
         .filter(|&(_, host)| filter_host(host, &filter))
         .filter(|&(_, host)| id_regex.is_match(host.id.as_str()))
+        .filter(|&(_, host)| saltversion_regex.is_match(host.saltversion.as_str()))
         .collect();
 
     debug!("Filtered Hosts Length: {}", hosts.len());
@@ -696,7 +698,6 @@ fn filter_host(host: &Host, filter: &Filter) -> bool {
                                       empty_or_matching(&host.os_family, &filter.os_family),
                                       empty_or_matching(&host.productname, &filter.productname),
                                       empty_or_matching(&host.realm, &filter.realm),
-                                      empty_or_matching(&host.saltversion, &filter.saltversion),
                                       empty_or_matching(&host.saltmaster, &filter.saltmaster),
                                       empty_or_matching(&host.serialnumber, &filter.serialnumber),
                                       empty_or_matching_ipv4(&host.ipv4, &filter.ipv4),
