@@ -232,12 +232,25 @@ fn main() {
                         warn_host(host, &warning)
                     }
                 }
+                "aggregate" => {
+                    match command.matches.subcommand {
+                        Some(command) => {
+                            match command.name.as_str() {
+                                "roles" => aggregate_roles(hosts),
+                                "realm" => aggregate_realm(hosts),
+                                "environment" => aggregate_environment(hosts),
+                                _ => unreachable!(),
+                            }
+                        }
+                        None => aggregate(hosts),
+                    }
+                }
                 "report" => render_report(hosts, filter, folder, report_hosts),
                 "ssh_hosts" => {
                     let prefix = matches.value_of("hosts_prefix").unwrap_or("");
                     render_ssh_hosts(hosts, prefix, folder);
                 }
-                _ => println!("{:#?}", hosts),
+                _ => unreachable!(),
             }
         }
         None => println!("{:#?}", hosts),
@@ -422,6 +435,66 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
     if report_hosts {
         render_report_hosts(hosts)
     }
+}
+
+fn aggregate(hosts: Map<&String, &Host>) {
+    println!("{}", serde_json::to_string(&hosts).unwrap());
+}
+
+fn aggregate_roles(hosts: Map<&String, &Host>) {
+    let mut agg: Map<String, u32> = Map::default();
+    for host in hosts.values() {
+        for role in &host.roles {
+            *agg.entry(role.clone()).or_insert(0) += 1;
+            *agg.entry("_total".to_string()).or_insert(0) += 1;
+        }
+    }
+
+    let mut vec: Vec<Count> = Vec::default();
+    for (name, count) in agg {
+        vec.push(Count {
+            count: count,
+            name: name,
+        });
+    }
+
+    println!("{}", serde_json::to_string(&vec).unwrap());
+}
+
+fn aggregate_realm(hosts: Map<&String, &Host>) {
+    let mut agg: Map<String, u32> = Map::default();
+    for host in hosts.values() {
+        *agg.entry(host.realm.clone()).or_insert(0) += 1;
+        *agg.entry("_total".to_string()).or_insert(0) += 1;
+    }
+
+    let mut vec: Vec<Count> = Vec::default();
+    for (name, count) in agg {
+        vec.push(Count {
+            count: count,
+            name: name,
+        });
+    }
+
+    println!("{}", serde_json::to_string(&vec).unwrap());
+}
+
+fn aggregate_environment(hosts: Map<&String, &Host>) {
+    let mut agg: Map<String, u32> = Map::default();
+    for host in hosts.values() {
+        *agg.entry(host.environment.clone()).or_insert(0) += 1;
+        *agg.entry("_total".to_string()).or_insert(0) += 1;
+    }
+
+    let mut vec: Vec<Count> = Vec::default();
+    for (name, count) in agg {
+        vec.push(Count {
+            count: count,
+            name: name,
+        });
+    }
+
+    println!("{}", serde_json::to_string(&vec).unwrap());
 }
 
 fn render_report_hosts(hosts: Map<&String, &Host>) {

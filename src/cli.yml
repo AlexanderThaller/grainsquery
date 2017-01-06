@@ -175,6 +175,15 @@ subcommands:
             long: report.hosts
             takes_value: true
             value_name: bool
+  - aggregate:
+      about: aggregate over certain aspects of the minions
+      subcommands:
+        - roles:
+            about: aggregate roles
+        - realm:
+            about: aggregate roles
+        - environment:
+            about: aggregate roles
   - validate:
       about: show warnings (missing roles, environment, realm, etc.) about the parsed grains
       args:
