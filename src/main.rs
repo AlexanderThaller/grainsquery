@@ -226,7 +226,18 @@ fn main() {
     match app.subcommand.clone() {
         Some(command) => {
             match command.name.as_str() {
-                "list" => println!("{:#?}", hosts),
+                "list" => {
+                    let format = matches.value_of("output_format").unwrap_or("default");
+                    match format {
+                        "json" => {
+                            println!("{}",
+                                     serde_json::to_string(&hosts)
+                                         .expect("can not convert hosts to json for listing the \
+                                                  hosts"))
+                        }
+                        _ => println!("{:#?}", hosts),
+                    }
+                }
                 "validate" => {
                     for host in hosts.values() {
                         warn_host(host, &warning)

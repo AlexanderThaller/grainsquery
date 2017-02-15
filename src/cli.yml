@@ -219,6 +219,15 @@ subcommands:
             value_name: bool
   - list:
       about: show minions which where parsed from the grains
+      args:
+        - output_format:
+            help: the output format of the list
+            long: out
+            short: O
+            takes_value: true
+            default_value: default
+            value_name: format
+            possible_values: [ default, json ]
   - ssh_hosts:
       about: generate ssh hosts file from grains
       args:
