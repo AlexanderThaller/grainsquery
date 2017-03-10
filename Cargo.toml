@@ -2,30 +2,22 @@
 name = "grainsquery"
 version = "0.1.2"
 authors = ["Alexander Thaller <alexander.thaller@trivago.com>"]
-build = "build.rs"
 
 [lib]
 name = "host"
 path = "src/host.rs"
 
 [dependencies]
-serde = "*"
-serde_yaml = "0.4.1"
-serde_json = "*"
-glob = "*"
-log = "*"
-loggerv = "*"
-env_logger = "*"
-regex = "*"
-time = "*"
+env_logger = "0.4"
+glob = "0.2"
+log = "0.3"
+loggerv = "0.2"
+regex = "0.2"
+serde = "0.9"
+serde_derive = "0.9"
+serde_json = "0.9"
+time = "0.1"
 
 [dependencies.clap]
-version = ""
-features = ["yaml"]
-
-[build-dependencies]
-serde_codegen = "*"
-
-[build-dependencies.clap]
-version = "*"
+version = "2"
 features = ["yaml"]

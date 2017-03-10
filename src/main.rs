@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 extern crate serde;
-extern crate serde_yaml;
 extern crate serde_json;
 extern crate glob;
 extern crate env_logger;
@@ -35,6 +34,9 @@ extern crate log;
 
 #[macro_use]
 extern crate clap;
+
+#[macro_use]
+extern crate serde_derive;
 
 use clap::App;
 use glob::glob;
@@ -52,7 +54,17 @@ use std::vec::Vec;
 use std::str::FromStr;
 use host::Host;
 
-include!(concat!(env!("OUT_DIR"), "/main_types.rs"));
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct Cache {
+    gitcommit: String,
+    hosts: Map<String, Host>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
+struct Count {
+    count: u32,
+    name: String,
+}
 
 #[derive(Debug)]
 struct Filter {
@@ -103,6 +115,13 @@ struct Warning {
     nosaltmaster: bool,
     noipv6: bool,
     different_master: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Ret {
+    jid: String,
+    retcode: usize,
+    ret: Host,
 }
 
 fn main() {
@@ -725,7 +744,7 @@ fn read_cache_check_refresh(folder: &Path, cachefile: &Path) -> Option<Cache> {
 fn read_cache(cachefile: &Path) -> Option<Cache> {
     let data = file_to_string(cachefile).unwrap();
 
-    match serde_yaml::from_str(&data) {
+    match serde_json::from_str(&data) {
         Ok(cache) => Some(cache),
         Err(_) => None,
     }
@@ -743,19 +762,32 @@ fn write_cache(cachefile: &Path, cache: &Cache) {
 fn parse_hosts_from_folder(folder: &Path) -> Map<String, Host> {
     let mut hosts: Map<String, Host> = Map::new();
 
-    let files = format!("{}/*.yaml", folder.display());
+    let files = format!("{}/*.json", folder.display());
     for entry in glob(files.as_str()).expect("Failed to read glob pattern") {
         match entry {
             Ok(path) => {
                 match file_to_string(path.as_path()) {
                     Ok(data) => {
-                        match serde_yaml::from_str(&data) {
+                        match serde_json::from_str(&data) {
                             Ok(host) => {
                                 let mut map: Map<String, Host> = host;
                                 hosts.append(&mut map)
                             }
-                            Err(err) => {
-                                warn!("can not parse host from file {:?}: {}", path.as_path(), err)
+                            Err(_) => {
+                                match serde_json::from_str(&data) {
+                                    Ok(ret) => {
+                                        let map: Map<String, Ret> = ret;
+                                        for (id, ret) in map.into_iter() {
+                                            let mut map: Map<String, Host> = Map::default();
+                                            map.insert(id, ret.ret);
+
+                                            hosts.append(&mut map)
+                                        }
+                                    }
+                                    Err(err) => {
+                                        warn!("can not parse host {:#?} from file: {}", path, err)
+                                    }
+                                }
                             }
                         }
                     }
