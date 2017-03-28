@@ -9,7 +9,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
+// The above copyright notice and this permission notice shall be included in
+// all
 // copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -40,19 +41,20 @@ extern crate serde_derive;
 
 use clap::App;
 use glob::glob;
+use host::Host;
 use log::LogLevel;
 use regex::Regex;
 use std::collections::BTreeMap as Map;
+use std::collections::BTreeSet as Set;
 use std::env;
 use std::fs::File;
-use std::io::prelude::*;
 use std::io::Result;
+use std::io::prelude::*;
 use std::net::Ipv4Addr;
 use std::path::Path;
 use std::path::PathBuf;
-use std::vec::Vec;
 use std::str::FromStr;
-use host::Host;
+use std::vec::Vec;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct Cache {
@@ -228,8 +230,10 @@ fn main() {
 
     debug!("Hosts Length: {}", hosts.len());
 
-    // TODO: move this back into the filter_host function but avoid recompiling the regex for every
-    // host (see example-avoid-compiling-the-same-regex-in-a-loop in the rust documentation about
+    // TODO: move this back into the filter_host function but avoid recompiling the
+    // regex for every
+    // host (see example-avoid-compiling-the-same-regex-in-a-loop in the rust
+    // documentation about
     // the regex crate)
     let id_regex = Regex::new(filter.id.as_str()).unwrap();
     let saltversion_regex = Regex::new(filter.saltversion.as_str()).unwrap();
@@ -269,6 +273,7 @@ fn main() {
                                 "roles" => aggregate_roles(hosts),
                                 "realm" => aggregate_realm(hosts),
                                 "environment" => aggregate_environment(hosts),
+                                "applications" => aggregate_applications(hosts),
                                 _ => unreachable!(),
                             }
                         }
@@ -509,6 +514,23 @@ fn aggregate_realm(hosts: Map<&String, &Host>) {
     println!("{}", serde_json::to_string(&vec).unwrap());
 }
 
+fn aggregate_applications(hosts: Map<&String, &Host>) {
+    let mut map: Map<String, Map<String, Set<String>>> = Map::default();
+    for host in hosts.values() {
+        for (app_type, apps) in host.applications.clone() {
+            for app in apps {
+                map.entry(host.realm.clone())
+                    .or_insert(Map::default())
+                    .entry(app_type.clone())
+                    .or_insert(Set::default())
+                    .insert(app);
+            }
+        }
+    }
+
+    println!("{}", serde_json::to_string(&map).unwrap());
+}
+
 fn aggregate_environment(hosts: Map<&String, &Host>) {
     let mut agg: Map<String, u32> = Map::default();
     for host in hosts.values() {
@@ -600,10 +622,11 @@ fn filter_lines_beginning_with(lines: &str, beginning: &str) -> String {
     out
 }
 
-fn render_key_value_list(list: &Map<String, u32>,
-                         header_key: String,
-                         header_value: String)
-                         -> String {
+fn render_key_value_list(
+    list: &Map<String, u32>,
+    header_key: String,
+    header_value: String
+) -> String {
     let mut table = String::new();
 
     for (key, value) in list {
@@ -675,11 +698,12 @@ fn value_or_default(value: String, fallback: String) -> String {
     if value == "" { fallback } else { value }
 }
 
-fn parse_hosts_or_use_cache(folder: &Path,
-                            cachefile: &Path,
-                            usecache: bool,
-                            cache_force_refresh: bool)
-                            -> Map<String, Host> {
+fn parse_hosts_or_use_cache(
+    folder: &Path,
+    cachefile: &Path,
+    usecache: bool,
+    cache_force_refresh: bool
+) -> Map<String, Host> {
     if usecache {
         debug!("use cache");
         if !cache_force_refresh && cachefile.exists() {
@@ -784,8 +808,23 @@ fn parse_hosts_from_folder(folder: &Path) -> Map<String, Host> {
                                             hosts.append(&mut map)
                                         }
                                     }
-                                    Err(err) => {
-                                        warn!("can not parse host {:#?} from file: {}", path, err)
+                                    Err(_) => {
+                                        match serde_json::from_str(&data) {
+                                            Ok(values) => {
+                                                let map: Map<String, String> = values;
+                                                for (host, error) in map {
+                                                    warn!("Minion {} failed with the error: {}",
+                                                          host,
+                                                          error)
+                                                }
+                                            }
+                                            Err(err) => {
+                                                warn!("can not parse minion grains from file \
+                                                       {:#?}: {}",
+                                                      path,
+                                                      err)
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -803,8 +842,8 @@ fn parse_hosts_from_folder(folder: &Path) -> Map<String, Host> {
 
 fn file_to_string(filepath: &Path) -> Result<String> {
     let mut s = String::new();
-    let mut f = try!(File::open(filepath));
-    try!(f.read_to_string(&mut s));
+    let mut f = File::open(filepath)?;
+    f.read_to_string(&mut s)?;
 
     Ok(s)
 }
