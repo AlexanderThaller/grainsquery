@@ -180,7 +180,7 @@ fn main() {
 
     let filter = Filter {
         applications: values_t!(matches.values_of("filter_applications"), String)
-            .unwrap_or(Vec::new()),
+            .unwrap_or_default(),
         applications_mode: String::from(matches.value_of("filter_applications_mode")
             .unwrap_or("one")),
         environment: String::from(matches.value_of("filter_environment").unwrap_or("")),
@@ -192,7 +192,7 @@ fn main() {
         os_family: String::from(matches.value_of("filter_os_family").unwrap_or("")),
         productname: String::from(matches.value_of("filter_productname").unwrap_or("")),
         realm: String::from(matches.value_of("filter_realm").unwrap_or("")),
-        roles: values_t!(matches.values_of("filter_roles"), String).unwrap_or(Vec::new()),
+        roles: values_t!(matches.values_of("filter_roles"), String).unwrap_or_default(),
         roles_mode: String::from(matches.value_of("filter_roles_mode").unwrap_or("one")),
         saltversion: String::from(matches.value_of("filter_saltversion").unwrap_or("")),
         saltmaster: String::from(matches.value_of("filter_saltmaster").unwrap_or("")),
@@ -270,17 +270,17 @@ fn main() {
                     match command.matches.subcommand {
                         Some(command) => {
                             match command.name.as_str() {
-                                "roles" => aggregate_roles(hosts),
-                                "realm" => aggregate_realm(hosts),
-                                "environment" => aggregate_environment(hosts),
-                                "applications" => aggregate_applications(hosts),
+                                "roles" => aggregate_roles(&hosts),
+                                "realm" => aggregate_realm(&hosts),
+                                "environment" => aggregate_environment(&hosts),
+                                "applications" => aggregate_applications(&hosts),
                                 _ => unreachable!(),
                             }
                         }
-                        None => aggregate(hosts),
+                        None => aggregate(&hosts),
                     }
                 }
-                "report" => render_report(hosts, filter, folder, report_hosts),
+                "report" => render_report(hosts, &filter, folder, report_hosts),
                 "ssh_hosts" => {
                     let prefix = matches.value_of("hosts_prefix").unwrap_or("");
                     render_ssh_hosts(hosts, prefix, folder);
@@ -315,7 +315,7 @@ fn render_ssh_hosts(hosts: Map<&String, &Host>, prefix: &str, folder: &Path) {
     }
 }
 
-fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, report_hosts: bool) {
+fn render_report(hosts: Map<&String, &Host>, filter: &Filter, folder: &Path, report_hosts: bool) {
     let mut realms: Map<String, u32> = Map::default();
     let mut environments: Map<String, u32> = Map::default();
     let mut salts: Map<String, u32> = Map::default();
@@ -472,11 +472,11 @@ fn render_report(hosts: Map<&String, &Host>, filter: Filter, folder: &Path, repo
     }
 }
 
-fn aggregate(hosts: Map<&String, &Host>) {
+fn aggregate(hosts: &Map<&String, &Host>) {
     println!("{}", serde_json::to_string(&hosts).unwrap());
 }
 
-fn aggregate_roles(hosts: Map<&String, &Host>) {
+fn aggregate_roles(hosts: &Map<&String, &Host>) {
     let mut agg: Map<String, u32> = Map::default();
     for host in hosts.values() {
         for role in &host.roles {
@@ -496,7 +496,7 @@ fn aggregate_roles(hosts: Map<&String, &Host>) {
     println!("{}", serde_json::to_string(&vec).unwrap());
 }
 
-fn aggregate_realm(hosts: Map<&String, &Host>) {
+fn aggregate_realm(hosts: &Map<&String, &Host>) {
     let mut agg: Map<String, u32> = Map::default();
     for host in hosts.values() {
         *agg.entry(host.realm.clone()).or_insert(0) += 1;
@@ -514,15 +514,15 @@ fn aggregate_realm(hosts: Map<&String, &Host>) {
     println!("{}", serde_json::to_string(&vec).unwrap());
 }
 
-fn aggregate_applications(hosts: Map<&String, &Host>) {
+fn aggregate_applications(hosts: &Map<&String, &Host>) {
     let mut map: Map<String, Map<String, Set<String>>> = Map::default();
     for host in hosts.values() {
         for (app_type, apps) in host.applications.clone() {
             for app in apps {
                 map.entry(host.realm.clone())
-                    .or_insert(Map::default())
+                    .or_insert_with(Map::default)
                     .entry(app_type.clone())
-                    .or_insert(Set::default())
+                    .or_insert_with(Set::default)
                     .insert(app);
             }
         }
@@ -531,7 +531,7 @@ fn aggregate_applications(hosts: Map<&String, &Host>) {
     println!("{}", serde_json::to_string(&map).unwrap());
 }
 
-fn aggregate_environment(hosts: Map<&String, &Host>) {
+fn aggregate_environment(hosts: &Map<&String, &Host>) {
     let mut agg: Map<String, u32> = Map::default();
     for host in hosts.values() {
         *agg.entry(host.environment.clone()).or_insert(0) += 1;
@@ -600,7 +600,7 @@ fn render_report_hosts(hosts: Map<&String, &Host>) {
     }
 }
 
-fn render_list<A: std::fmt::Display + std::cmp::Ord>(list: &Vec<A>) -> String {
+fn render_list<A: std::fmt::Display + std::cmp::Ord>(list: &[A]) -> String {
     let mut out = String::new();
 
     for line in list {
@@ -622,11 +622,7 @@ fn filter_lines_beginning_with(lines: &str, beginning: &str) -> String {
     out
 }
 
-fn render_key_value_list(
-    list: &Map<String, u32>,
-    header_key: String,
-    header_value: String
-) -> String {
+fn render_key_value_list(list: &Map<String, u32>, header_key: &str, header_value: &str) -> String {
     let mut table = String::new();
 
     for (key, value) in list {
@@ -652,7 +648,7 @@ fn render_filter(filter: &Filter) -> String {
     let realm = format!("Realm:: `{}`",
                         value_or_default(filter.realm.clone(), String::from("-")));
     let roles = format!("Roles:: `{}`",
-                        value_or_default_vec(filter.roles.clone(), String::from("-")));
+                        value_or_default_vec(&filter.roles.clone(), String::from("-")));
     let saltversion = format!("Salt Version:: `{}`",
                               value_or_default(filter.saltversion.clone(), String::from("-")));
     let saltmaster = format!("Saltmaster :: `{}`",
@@ -686,7 +682,7 @@ fn render_filter(filter: &Filter) -> String {
             isvirtual)
 }
 
-fn value_or_default_vec(value: Vec<String>, fallback: String) -> String {
+fn value_or_default_vec(value: &[String], fallback: String) -> String {
     if value.is_empty() {
         fallback
     } else {
@@ -801,7 +797,7 @@ fn parse_hosts_from_folder(folder: &Path) -> Map<String, Host> {
                                 match serde_json::from_str(&data) {
                                     Ok(ret) => {
                                         let map: Map<String, Ret> = ret;
-                                        for (id, ret) in map.into_iter() {
+                                        for (id, ret) in map {
                                             let mut map: Map<String, Host> = Map::default();
                                             map.insert(id, ret.ret);
 
@@ -878,12 +874,12 @@ fn filter_check_applications(applications: &Map<String, Vec<String>>, filter: &F
     let mut filters: Vec<bool> = Vec::new();
 
     for (apptype, names) in applications {
-        let apps = names.into_iter().map(|name| format!("{}:{}", apptype, name)).collect();
+        let apps: Vec<_> = names.into_iter().map(|name| format!("{}:{}", apptype, name)).collect();
         debug!("apps: {:?}", apps);
 
         match filter.applications_mode.as_str() {
             "one" => filters.push(contains_one(&apps, &filter.applications)),
-            _ => filters.push(contains_all(&apps, &filter.applications)),
+            _ => filters.push(contains_all(apps.as_slice(), &filter.applications)),
         }
     }
 
@@ -893,7 +889,7 @@ fn filter_check_applications(applications: &Map<String, Vec<String>>, filter: &F
         .fold(true, |acc, &x| acc && x)
 }
 
-fn contains_one<T: std::cmp::PartialEq>(source: &Vec<T>, search: &Vec<T>) -> bool {
+fn contains_one<T: std::cmp::PartialEq>(source: &[T], search: &[T]) -> bool {
     if search.is_empty() {
         return true;
     }
@@ -907,7 +903,7 @@ fn contains_one<T: std::cmp::PartialEq>(source: &Vec<T>, search: &Vec<T>) -> boo
     false
 }
 
-fn contains_all<T: std::cmp::PartialEq>(source: &Vec<T>, search: &Vec<T>) -> bool {
+fn contains_all<T: std::cmp::PartialEq>(source: &[T], search: &[T]) -> bool {
     if search.is_empty() {
         return true;
     }
@@ -925,12 +921,12 @@ fn contains_all<T: std::cmp::PartialEq>(source: &Vec<T>, search: &Vec<T>) -> boo
         .fold(true, |acc, &x| acc && x)
 }
 
-fn empty_or_matching_ipv4(value: &Vec<Ipv4Addr>, filter: &Ipv4Addr) -> bool {
+fn empty_or_matching_ipv4(value: &[Ipv4Addr], filter: &Ipv4Addr) -> bool {
     if filter == &Ipv4Addr::new(0, 0, 0, 0) {
         return true;
     }
 
-    contains_one(value, &vec![filter.clone()])
+    contains_one(value, &[*filter])
 }
 
 fn empty_or_matching(value: &str, filter: &str) -> bool {
