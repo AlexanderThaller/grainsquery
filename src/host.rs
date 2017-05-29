@@ -73,6 +73,14 @@ pub struct Host {
     pub serialnumber: String,
     #[serde(default, rename = "virtual")]
     pub isvirtual: String,
+    #[serde(default = "default_structure")]
+    pub structure: String,
+    #[serde(default)]
+    pub role: String,
+}
+
+fn default_structure() -> String {
+    "v1".to_string()
 }
 
 impl fmt::Display for Host {

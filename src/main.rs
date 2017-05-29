@@ -23,6 +23,7 @@
 
 extern crate serde;
 extern crate serde_json;
+extern crate csv;
 extern crate glob;
 extern crate env_logger;
 extern crate regex;
@@ -85,6 +86,8 @@ struct Filter {
     saltversion: String,
     serialnumber: String,
     isvirtual: String,
+    structure: String,
+    role: String,
 }
 
 impl Default for Filter {
@@ -105,6 +108,8 @@ impl Default for Filter {
             ipv4: Ipv4Addr::new(0, 0, 0, 0),
             serialnumber: String::new(),
             isvirtual: String::new(),
+            structure: String::new(),
+            role: String::new(),
         }
     }
 }
@@ -137,7 +142,8 @@ fn main() {
         None => app.clone(),
     };
 
-    let loglevel: LogLevel = matches.value_of("log_level")
+    let loglevel: LogLevel = matches
+        .value_of("log_level")
         .unwrap_or("warn")
         .parse()
         .unwrap_or(LogLevel::Warn);
@@ -167,24 +173,36 @@ fn main() {
     let cachefile = cachefilepath.as_path();
     debug!("cachefile: {:#?}", cachefile);
 
-    let usecache: bool = matches.value_of("cache_use").unwrap_or("true").parse().unwrap_or(true);
+    let usecache: bool = matches
+        .value_of("cache_use")
+        .unwrap_or("true")
+        .parse()
+        .unwrap_or(true);
     debug!("usecache: {}", usecache);
 
-    let cache_force_refresh: bool =
-        matches.value_of("cache_force_refresh").unwrap_or("false").parse().unwrap_or(false);
+    let cache_force_refresh: bool = matches
+        .value_of("cache_force_refresh")
+        .unwrap_or("false")
+        .parse()
+        .unwrap_or(false);
     debug!("cache_force_refresh:: {}", cache_force_refresh);
 
-    let report_hosts: bool =
-        matches.value_of("report_hosts").unwrap_or("true").parse().unwrap_or(true);
+    let report_hosts: bool = matches
+        .value_of("report_hosts")
+        .unwrap_or("true")
+        .parse()
+        .unwrap_or(true);
     debug!("report_hosts: {}", report_hosts);
 
     let filter = Filter {
         applications: values_t!(matches.values_of("filter_applications"), String)
             .unwrap_or_default(),
-        applications_mode: String::from(matches.value_of("filter_applications_mode")
-            .unwrap_or("one")),
+        applications_mode: String::from(matches
+                                            .value_of("filter_applications_mode")
+                                            .unwrap_or("one")),
         environment: String::from(matches.value_of("filter_environment").unwrap_or("")),
-        id_inverse: matches.value_of("filter_id_inverse")
+        id_inverse: matches
+            .value_of("filter_id_inverse")
             .unwrap_or("false")
             .parse()
             .unwrap_or(false),
@@ -200,24 +218,38 @@ fn main() {
         ipv4: Ipv4Addr::from_str(matches.value_of("filter_ip").unwrap_or(""))
             .unwrap_or_else(|_| Ipv4Addr::new(0, 0, 0, 0)),
         isvirtual: String::from(matches.value_of("filter_isvirtual").unwrap_or("")),
+        structure: String::from(matches.value_of("filter_structure").unwrap_or("")),
+        role: String::from(matches.value_of("filter_role").unwrap_or("")),
     };
 
     let warning = Warning {
-        noenvironment: matches.value_of("warn_noenvironment")
+        noenvironment: matches
+            .value_of("warn_noenvironment")
             .unwrap_or("true")
             .parse()
             .unwrap_or(true),
-        norealm: matches.value_of("warn_norealm").unwrap_or("true").parse().unwrap_or(true),
-        noroles: matches.value_of("warn_noroles").unwrap_or("true").parse().unwrap_or(true),
-        nosaltmaster: matches.value_of("warn_nosaltmaster")
+        norealm: matches
+            .value_of("warn_norealm")
             .unwrap_or("true")
             .parse()
             .unwrap_or(true),
-        noipv6: matches.value_of("warn_noipv6")
+        noroles: matches
+            .value_of("warn_noroles")
             .unwrap_or("true")
             .parse()
             .unwrap_or(true),
-        different_master: matches.value_of("warn_different_master")
+        nosaltmaster: matches
+            .value_of("warn_nosaltmaster")
+            .unwrap_or("true")
+            .parse()
+            .unwrap_or(true),
+        noipv6: matches
+            .value_of("warn_noipv6")
+            .unwrap_or("true")
+            .parse()
+            .unwrap_or(true),
+        different_master: matches
+            .value_of("warn_different_master")
             .unwrap_or("true")
             .parse()
             .unwrap_or(true),
@@ -238,7 +270,8 @@ fn main() {
     let id_regex = Regex::new(filter.id.as_str()).unwrap();
     let saltversion_regex = Regex::new(filter.saltversion.as_str()).unwrap();
 
-    let hosts: Map<_, _> = hosts.iter()
+    let hosts: Map<_, _> = hosts
+        .iter()
         .filter(|&(_, host)| filter_host(host, &filter))
         .filter(|&(_, host)| id_regex.is_match(host.id.as_str()))
         .filter(|&(_, host)| saltversion_regex.is_match(host.saltversion.as_str()))
@@ -274,6 +307,9 @@ fn main() {
                                 "realm" => aggregate_realm(&hosts),
                                 "environment" => aggregate_environment(&hosts),
                                 "applications" => aggregate_applications(&hosts),
+                                "knowledge" => aggregate_knowledge(&hosts),
+                                "knowledge_csv" => aggregate_knowledge_csv(&hosts),
+                                "structure" => aggregate_structure(&hosts),
                                 _ => unreachable!(),
                             }
                         }
@@ -330,6 +366,8 @@ fn render_report(hosts: Map<&String, &Host>, filter: &Filter, folder: &Path, rep
     let mut kernels: Map<String, u32> = Map::default();
     let mut ips: Map<String, u32> = Map::default();
     let mut isvirtual: Map<String, u32> = Map::default();
+    let mut structure: Map<String, u32> = Map::default();
+    let mut role: Map<String, u32> = Map::default();
 
     for host in hosts.values() {
         *realms.entry(host.realm.clone()).or_insert(0) += 1;
@@ -346,11 +384,15 @@ fn render_report(hosts: Map<&String, &Host>, filter: &Filter, folder: &Path, rep
 
         let mut sort_roles = host.roles.to_vec();
         sort_roles.sort();
-        *role_combinations.entry(render_list(&sort_roles)).or_insert(0) += 1;
+        *role_combinations
+             .entry(render_list(&sort_roles))
+             .or_insert(0) += 1;
 
         for (apptype, names) in &host.applications {
             for name in names {
-                *applications.entry(format!("{}:{}", apptype, name)).or_insert(0) += 1;
+                *applications
+                     .entry(format!("{}:{}", apptype, name))
+                     .or_insert(0) += 1;
             }
         }
 
@@ -368,6 +410,8 @@ fn render_report(hosts: Map<&String, &Host>, filter: &Filter, folder: &Path, rep
         }
 
         *isvirtual.entry(host.isvirtual.clone()).or_insert(0) += 1;
+        *structure.entry(host.structure.clone()).or_insert(0) += 1;
+        *role.entry(host.role.clone()).or_insert(0) += 1;
     }
 
     let header = include_str!("report.header.asciidoc");
@@ -467,6 +511,16 @@ fn render_report(hosts: Map<&String, &Host>, filter: &Filter, folder: &Path, rep
              render_key_value_list(&isvirtual, "Virtual".into(), "Count".into()));
     println!("");
 
+    println!("=== Structure");
+    println!("\n{}",
+             render_key_value_list(&structure, "Structure".into(), "Count".into()));
+    println!("");
+
+    println!("=== Role");
+    println!("\n{}",
+             render_key_value_list(&role, "Role".into(), "Count".into()));
+    println!("");
+
     if report_hosts {
         render_report_hosts(hosts)
     }
@@ -488,9 +542,9 @@ fn aggregate_roles(hosts: &Map<&String, &Host>) {
     let mut vec: Vec<Count> = Vec::default();
     for (name, count) in agg {
         vec.push(Count {
-            count: count,
-            name: name,
-        });
+                     count: count,
+                     name: name,
+                 });
     }
 
     println!("{}", serde_json::to_string(&vec).unwrap());
@@ -506,9 +560,9 @@ fn aggregate_realm(hosts: &Map<&String, &Host>) {
     let mut vec: Vec<Count> = Vec::default();
     for (name, count) in agg {
         vec.push(Count {
-            count: count,
-            name: name,
-        });
+                     count: count,
+                     name: name,
+                 });
     }
 
     println!("{}", serde_json::to_string(&vec).unwrap());
@@ -531,6 +585,95 @@ fn aggregate_applications(hosts: &Map<&String, &Host>) {
     println!("{}", serde_json::to_string(&map).unwrap());
 }
 
+fn aggregate_structure(hosts: &Map<&String, &Host>) {
+    let mut agg: Map<String, u32> = Map::default();
+    for host in hosts.values() {
+        *agg.entry(host.structure.clone()).or_insert(0) += 1;
+        *agg.entry("_total".to_string()).or_insert(0) += 1;
+    }
+
+    let mut vec: Vec<Count> = Vec::default();
+    for (name, count) in agg {
+        vec.push(Count {
+                     count: count,
+                     name: name,
+                 });
+    }
+
+    println!("{}", serde_json::to_string(&vec).unwrap());
+}
+
+fn aggregate_knowledge(hosts: &Map<&String, &Host>) {
+    println!("= Hosts for Knowledge\n");
+
+    // Server name	IP	Service(s)
+    println!("[cols=\"1,1a,1a\", options=\"header\"]
+|===
+|Host|IPs|Services");
+
+    for host in hosts.values() {
+        let mut out = String::default();
+
+        out.push_str(format!("|{}", host.id).as_str());
+
+        out.push_str("|");
+        for ip in host.ipv4.iter() {
+            out.push_str(format!("* `{}`\n", ip).as_str());
+        }
+
+        out.push_str("|");
+        for (app_type, apps) in host.applications.clone() {
+            out.push_str(format!("* `{}`\n", app_type).as_str());
+
+            for app in apps {
+                out.push_str(format!("** `{}`\n", app).as_str());
+            }
+        }
+
+        println!("{}", out);
+    }
+    println!("|===");
+}
+
+fn aggregate_knowledge_csv(hosts: &Map<&String, &Host>) {
+    let mut records: Vec<Vec<String>> = Vec::default();
+
+    for host in hosts.values() {
+        let mut record: Vec<String> = Vec::default();
+        record.push(host.id.clone());
+
+        {
+            let mut out = String::default();
+            for ip in host.ipv4.iter() {
+                out.push_str(format!("{}\n", ip).as_str());
+            }
+            record.push(out);
+        }
+
+        {
+            let mut out = String::default();
+            for (app_type, apps) in host.applications.clone() {
+                out.push_str(format!("{}\n", app_type).as_str());
+
+                for app in apps {
+                    out.push_str(format!("  {}\n", app).as_str());
+                }
+            }
+            record.push(out);
+        }
+
+        records.push(record);
+    }
+
+    let mut wtr = csv::Writer::from_memory();
+    for record in records.into_iter() {
+        wtr.encode(record)
+            .expect("can not convert record to csv");
+    }
+
+    println!("{}", wtr.as_string());
+}
+
 fn aggregate_environment(hosts: &Map<&String, &Host>) {
     let mut agg: Map<String, u32> = Map::default();
     for host in hosts.values() {
@@ -541,9 +684,9 @@ fn aggregate_environment(hosts: &Map<&String, &Host>) {
     let mut vec: Vec<Count> = Vec::default();
     for (name, count) in agg {
         vec.push(Count {
-            count: count,
-            name: name,
-        });
+                     count: count,
+                     name: name,
+                 });
     }
 
     println!("{}", serde_json::to_string(&vec).unwrap());
@@ -561,6 +704,10 @@ fn render_report_hosts(hosts: Map<&String, &Host>) {
         println!("Kernel:: {}", host.get_full_kernel());
         println!("Product Name:: {}", host.productname);
         println!("Serialnumber:: {}", host.serialnumber);
+        println!("Structure:: {}", host.structure);
+        println!("Role:: {}", host.role);
+        println!("");
+
         if !host.roles.is_empty() {
             println!("\n==== Roles\n{}", render_list(&host.roles));
         }
@@ -698,7 +845,7 @@ fn parse_hosts_or_use_cache(
     folder: &Path,
     cachefile: &Path,
     usecache: bool,
-    cache_force_refresh: bool
+    cache_force_refresh: bool,
 ) -> Map<String, Host> {
     if usecache {
         debug!("use cache");
@@ -853,6 +1000,8 @@ fn filter_host(host: &Host, filter: &Filter) -> bool {
                                       empty_or_matching(&host.serialnumber, &filter.serialnumber),
                                       empty_or_matching_ipv4(&host.ipv4, &filter.ipv4),
                                       empty_or_matching(&host.isvirtual, &filter.isvirtual),
+                                      empty_or_matching(&host.structure, &filter.structure),
+                                      empty_or_matching(&host.role, &filter.role),
                                       filter_check_applications(&host.applications, &filter)];
 
     match filter.roles_mode.as_str() {
@@ -862,7 +1011,8 @@ fn filter_host(host: &Host, filter: &Filter) -> bool {
 
     debug!("host filters: {:?}", filters);
 
-    filters.iter()
+    filters
+        .iter()
         .fold(true, |acc, &x| acc && x)
 }
 
@@ -874,7 +1024,10 @@ fn filter_check_applications(applications: &Map<String, Vec<String>>, filter: &F
     let mut filters: Vec<bool> = Vec::new();
 
     for (apptype, names) in applications {
-        let apps: Vec<_> = names.into_iter().map(|name| format!("{}:{}", apptype, name)).collect();
+        let apps: Vec<_> = names
+            .into_iter()
+            .map(|name| format!("{}:{}", apptype, name))
+            .collect();
         debug!("apps: {:?}", apps);
 
         match filter.applications_mode.as_str() {
@@ -885,7 +1038,8 @@ fn filter_check_applications(applications: &Map<String, Vec<String>>, filter: &F
 
     debug!("app filters: {:?}", filters);
 
-    filters.iter()
+    filters
+        .iter()
         .fold(true, |acc, &x| acc && x)
 }
 
