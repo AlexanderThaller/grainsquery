@@ -161,7 +161,7 @@ fn main() {
 
     let folderpath = match matches.value_of("folder_grains") {
         Some(path) => PathBuf::from(path),
-        None => homepath.join(".salt_grains"),
+        None => homepath.join(".salt_grains").join("grains"),
     };
     let folder = folderpath.as_path();
     debug!("folder: {:#?}", folder);
@@ -172,6 +172,13 @@ fn main() {
     };
     let cachefile = cachefilepath.as_path();
     debug!("cachefile: {:#?}", cachefile);
+
+    let cache_git_dir_value = match matches.value_of("cache_git_dir") {
+        Some(path) => PathBuf::from(path),
+        None => homepath.join(".salt_grains").join(".git"),
+    };
+    let cache_git_dir = cache_git_dir_value.as_path();
+    debug!("cache_git_dir: {:#?}", cache_git_dir);
 
     let usecache: bool = matches
         .value_of("cache_use")
@@ -258,7 +265,11 @@ fn main() {
     debug!("filter: {:#?}", filter);
     debug!("warning: {:#?}", warning);
 
-    let hosts = parse_hosts_or_use_cache(folder, cachefile, usecache, cache_force_refresh);
+    let hosts = parse_hosts_or_use_cache(folder,
+                                         cachefile,
+                                         usecache,
+                                         cache_force_refresh,
+                                         cache_git_dir);
 
     debug!("Hosts Length: {}", hosts.len());
 
@@ -316,10 +327,10 @@ fn main() {
                         None => aggregate(&hosts),
                     }
                 }
-                "report" => render_report(hosts, &filter, folder, report_hosts),
+                "report" => render_report(hosts, &filter, cache_git_dir, report_hosts),
                 "ssh_hosts" => {
                     let prefix = matches.value_of("hosts_prefix").unwrap_or("");
-                    render_ssh_hosts(hosts, prefix, folder);
+                    render_ssh_hosts(hosts, prefix, cache_git_dir);
                 }
                 _ => unreachable!(),
             }
@@ -328,14 +339,14 @@ fn main() {
     }
 }
 
-fn render_ssh_hosts(hosts: Map<&String, &Host>, prefix: &str, folder: &Path) {
+fn render_ssh_hosts(hosts: Map<&String, &Host>, prefix: &str, git_dir: &Path) {
     let host_prefix = match prefix {
         "" => String::from(""),
         _ => String::from(prefix) + ".",
     };
 
     println!("# generated: {}", time::now().rfc3339());
-    println!("# git commit: {}", get_current_commit_for_grains(folder));
+    println!("# git commit: {}", get_current_commit_for_grains(git_dir));
     println!("# grainsquery version: {}", crate_version!());
     println!("");
 
@@ -351,7 +362,7 @@ fn render_ssh_hosts(hosts: Map<&String, &Host>, prefix: &str, folder: &Path) {
     }
 }
 
-fn render_report(hosts: Map<&String, &Host>, filter: &Filter, folder: &Path, report_hosts: bool) {
+fn render_report(hosts: Map<&String, &Host>, filter: &Filter, git_dir: &Path, report_hosts: bool) {
     let mut realms: Map<String, u32> = Map::default();
     let mut environments: Map<String, u32> = Map::default();
     let mut salts: Map<String, u32> = Map::default();
@@ -423,7 +434,7 @@ fn render_report(hosts: Map<&String, &Host>, filter: &Filter, folder: &Path, rep
     println!("== Overview");
     println!("Total Host Count:: {}", hosts.len());
     println!("Generated:: {}", time::now().rfc3339());
-    println!("Git Commit:: `{}`", get_current_commit_for_grains(folder));
+    println!("Git Commit:: `{}`", get_current_commit_for_grains(git_dir));
     println!("Grainsquery Version:: `{}`", crate_version!());
     println!("");
 
@@ -813,8 +824,12 @@ fn render_filter(filter: &Filter) -> String {
                        });
     let isvirtual = format!("Is Virtual:: `{}`",
                             value_or_default(filter.isvirtual.clone(), String::from("-")));
+    let structure = format!("Structure:: `{}`",
+                            value_or_default(filter.structure.clone(), String::from("-")));
+    let role = format!("Role:: `{}`",
+                       value_or_default(filter.role.clone(), String::from("-")));
 
-    format!("{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
+    format!("{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
             realm,
             environment,
             roles,
@@ -826,7 +841,9 @@ fn render_filter(filter: &Filter) -> String {
             saltmaster,
             serialnumber,
             ipv4,
-            isvirtual)
+            isvirtual,
+            structure,
+            role)
 }
 
 fn value_or_default_vec(value: &[String], fallback: String) -> String {
@@ -841,17 +858,17 @@ fn value_or_default(value: String, fallback: String) -> String {
     if value == "" { fallback } else { value }
 }
 
-fn parse_hosts_or_use_cache(
-    folder: &Path,
-    cachefile: &Path,
-    usecache: bool,
-    cache_force_refresh: bool,
-) -> Map<String, Host> {
+fn parse_hosts_or_use_cache(folder: &Path,
+                            cachefile: &Path,
+                            usecache: bool,
+                            cache_force_refresh: bool,
+                            git_dir: &Path)
+                            -> Map<String, Host> {
     if usecache {
         debug!("use cache");
         if !cache_force_refresh && cachefile.exists() {
             debug!("Read cache");
-            match read_cache_check_refresh(folder, cachefile) {
+            match read_cache_check_refresh(folder, cachefile, git_dir) {
                 Some(cache) => cache.hosts,
                 None => parse_hosts_from_folder(folder),
             }
@@ -859,7 +876,7 @@ fn parse_hosts_or_use_cache(
             debug!("Read hosts");
             let hosts = parse_hosts_from_folder(folder);
             let cache = Cache {
-                gitcommit: get_current_commit_for_grains(folder),
+                gitcommit: get_current_commit_for_grains(git_dir),
                 hosts: hosts.clone(),
             };
 
@@ -872,8 +889,8 @@ fn parse_hosts_or_use_cache(
     }
 }
 
-fn get_current_commit_for_grains(folder: &Path) -> String {
-    let path = folder.join(".git").join("ORIG_HEAD");
+fn get_current_commit_for_grains(git_dir: &Path) -> String {
+    let path = git_dir.join("ORIG_HEAD");
     let data = file_to_string(&path).unwrap();
 
     debug!("git fetch_head: {:#?}", data);
@@ -885,8 +902,8 @@ fn get_current_commit_for_grains(folder: &Path) -> String {
     String::from(commit)
 }
 
-fn read_cache_check_refresh(folder: &Path, cachefile: &Path) -> Option<Cache> {
-    let commit = get_current_commit_for_grains(folder);
+fn read_cache_check_refresh(folder: &Path, cachefile: &Path, git_dir: &Path) -> Option<Cache> {
+    let commit = get_current_commit_for_grains(git_dir);
 
     match read_cache(cachefile) {
         None => None,

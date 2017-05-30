@@ -180,6 +180,12 @@ args:
         takes_value: true
         global: true
         value_name: bool
+    - cache_git_dir:
+        help: path to the git dir from which the current git commit hash will be read
+        long: cache.git_dir
+        takes_value: true
+        global: true
+        value_name: path
 
 subcommands:
   - report:
