@@ -393,11 +393,13 @@ fn render_report(hosts: Map<&String, &Host>, filter: &Filter, git_dir: &Path, re
             *roles.entry(role.clone()).or_insert(0) += 1;
         }
 
-        let mut sort_roles = host.roles.to_vec();
-        sort_roles.sort();
-        *role_combinations
-             .entry(render_list(&sort_roles))
-             .or_insert(0) += 1;
+        if !host.roles.is_empty() {
+            let mut sort_roles = host.roles.to_vec();
+            sort_roles.sort();
+            *role_combinations
+                 .entry(render_list(&sort_roles))
+                 .or_insert(0) += 1;
+        }
 
         for (apptype, names) in &host.applications {
             for name in names {
@@ -469,23 +471,29 @@ fn render_report(hosts: Map<&String, &Host>, filter: &Filter, git_dir: &Path, re
              render_key_value_list(&products, "Product".into(), "Count".into()));
     println!("");
 
-    println!("== Roles");
-    println!("Total:: {}", roles.len());
-    println!("\n{}",
-             render_key_value_list(&roles, "Role".into(), "Count".into()));
-    println!("");
+    if !roles.is_empty() {
+        println!("== Roles");
+        println!("Total:: {}", roles.len());
+        println!("\n{}",
+                 render_key_value_list(&roles, "Role".into(), "Count".into()));
+        println!("");
+    }
 
-    println!("== Role Combinations");
-    println!("Total:: {}", roles.len());
-    println!("\n{}",
-             render_key_value_list(&role_combinations, "Combination".into(), "Count".into()));
-    println!("");
+    if !role_combinations.is_empty() {
+        println!("== Role Combinations");
+        println!("Total:: {}", role_combinations.len());
+        println!("\n{}",
+                 render_key_value_list(&role_combinations, "Combination".into(), "Count".into()));
+        println!("");
+    }
 
-    println!("== Applications");
-    println!("Total:: {}", roles.len());
-    println!("\n{}",
-             render_key_value_list(&applications, "Application".into(), "Count".into()));
-    println!("");
+    if !applications.is_empty() {
+        println!("== Applications");
+        println!("Total:: {}", applications.len());
+        println!("\n{}",
+                 render_key_value_list(&applications, "Application".into(), "Count".into()));
+        println!("");
+    }
 
     println!("== OS");
     println!("=== OS Family");
