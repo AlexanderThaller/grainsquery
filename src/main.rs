@@ -30,6 +30,7 @@ extern crate regex;
 extern crate loggerv;
 extern crate time;
 extern crate host;
+extern crate chrono;
 
 #[macro_use]
 extern crate log;
@@ -40,6 +41,7 @@ extern crate clap;
 #[macro_use]
 extern crate serde_derive;
 
+use chrono::prelude::*;
 use clap::App;
 use glob::glob;
 use host::Host;
@@ -299,7 +301,7 @@ fn main() {
                         "json" => {
                             println!("{}",
                                      serde_json::to_string(&hosts)
-                                         .expect("can not convert hosts to json for listing the \
+                                     .expect("can not convert hosts to json for listing the \
                                                   hosts"))
                         }
                         _ => println!("{:#?}", hosts),
@@ -321,6 +323,7 @@ fn main() {
                                 "knowledge" => aggregate_knowledge(&hosts),
                                 "knowledge_csv" => aggregate_knowledge_csv(&hosts),
                                 "structure" => aggregate_structure(&hosts),
+                                "saltmaster" => aggregate_saltmaster(&hosts),
                                 _ => unreachable!(),
                             }
                         }
@@ -711,6 +714,24 @@ fn aggregate_environment(hosts: &Map<&String, &Host>) {
     println!("{}", serde_json::to_string(&vec).unwrap());
 }
 
+fn aggregate_saltmaster(hosts: &Map<&String, &Host>) {
+    let mut agg: Map<String, u32> = Map::default();
+    for host in hosts.values() {
+        *agg.entry(host.saltmaster.clone()).or_insert(0) += 1;
+        *agg.entry("_total".to_string()).or_insert(0) += 1;
+    }
+
+    let mut vec: Vec<Count> = Vec::default();
+    for (name, count) in agg {
+        vec.push(Count {
+                     count: count,
+                     name: name,
+                 });
+    }
+
+    println!("{}", serde_json::to_string(&vec).unwrap());
+}
+
 fn render_report_hosts(hosts: Map<&String, &Host>) {
     println!("== Hosts");
     for (id, host) in hosts {
@@ -724,7 +745,15 @@ fn render_report_hosts(hosts: Map<&String, &Host>) {
         println!("Product Name:: {}", host.productname);
         println!("Serialnumber:: {}", host.serialnumber);
         println!("Structure:: {}", host.structure);
-        println!("Role:: {}", host.role);
+
+        if !host.role.is_empty() {
+            println!("Role:: {}", host.role);
+        }
+
+        if let Some(lastseen) = host.lastseen {
+            println!("Last Seen:: {}", lastseen);
+        }
+
         println!("");
 
         if !host.roles.is_empty() {
@@ -742,14 +771,22 @@ fn render_report_hosts(hosts: Map<&String, &Host>) {
         if let Some(ip) = host.get_reachable_ip() {
             println!("Reachable:: `{}`", ip)
         }
-        println!("");
 
         let lookups = vec!["firewall", "firewall:admin", "firewall:backend", "firewall:frontend"];
 
-        println!("===== Lookup");
+        let mut lookups_ips = Vec::default();
+
         for lookup in lookups {
             if let Some(ip) = host.get_ip(lookup) {
-                println!("{}:: `{}`", lookup, ip)
+                lookups_ips.push((lookup, ip));
+            }
+        }
+
+        if !lookups_ips.is_empty() {
+            println!("");
+            println!("===== Lookup");
+            for (lookup, ip) in lookups_ips {
+                println!("`{}`:: `{}`", lookup, ip)
             }
         }
 
@@ -971,7 +1008,22 @@ fn parse_hosts_from_folder(folder: &Path) -> Map<String, Host> {
                                         let map: Map<String, Ret> = ret;
                                         for (id, ret) in map {
                                             let mut map: Map<String, Host> = Map::default();
-                                            map.insert(id, ret.ret);
+                                            let lastseen =
+                                                match UTC.datetime_from_str(ret.jid.as_str(),
+                                                                            "%Y%m%d%H%M%S%f") {
+                                                    Ok(parsed) => Some(parsed),
+                                                    Err(err) => {
+                                                        warn!("can not parse lastseen from jid for host {}: {}",
+                                                              id,
+                                                              err);
+                                                        None
+                                                    }
+                                                };
+
+                                            let mut host = ret.ret;
+                                            host.lastseen = lastseen;
+
+                                            map.insert(id, host);
 
                                             hosts.append(&mut map)
                                         }

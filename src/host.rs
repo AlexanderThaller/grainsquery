@@ -28,6 +28,10 @@ extern crate log;
 #[macro_use]
 extern crate serde_derive;
 
+extern crate chrono;
+
+use chrono::DateTime;
+use chrono::UTC;
 use std::collections::BTreeMap as Map;
 use std::fmt;
 use std::net::Ipv4Addr;
@@ -77,6 +81,8 @@ pub struct Host {
     pub structure: String,
     #[serde(default)]
     pub role: String,
+    #[serde(skip_serializing)]
+    pub lastseen: Option<DateTime<UTC>>,
 }
 
 fn default_structure() -> String {
