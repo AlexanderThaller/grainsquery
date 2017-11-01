@@ -215,6 +215,8 @@ subcommands:
             about: aggregate for knowledge page (to csv)
         - structure:
             about: aggregate saltmaster
+        - serialnumber:
+            about: aggregate serialnumber
   - validate:
       about: show warnings (missing roles, environment, realm, etc.) about the parsed grains
       args:

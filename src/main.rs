@@ -324,6 +324,7 @@ fn main() {
                                 "knowledge_csv" => aggregate_knowledge_csv(&hosts),
                                 "structure" => aggregate_structure(&hosts),
                                 "saltmaster" => aggregate_saltmaster(&hosts),
+                                "serialnumber" => aggregate_serialnumber(&hosts),
                                 _ => unreachable!(),
                             }
                         }
@@ -718,6 +719,24 @@ fn aggregate_saltmaster(hosts: &Map<&String, &Host>) {
     let mut agg: Map<String, u32> = Map::default();
     for host in hosts.values() {
         *agg.entry(host.saltmaster.clone()).or_insert(0) += 1;
+        *agg.entry("_total".to_string()).or_insert(0) += 1;
+    }
+
+    let mut vec: Vec<Count> = Vec::default();
+    for (name, count) in agg {
+        vec.push(Count {
+                     count: count,
+                     name: name,
+                 });
+    }
+
+    println!("{}", serde_json::to_string(&vec).unwrap());
+}
+
+fn aggregate_serialnumber(hosts: &Map<&String, &Host>) {
+    let mut agg: Map<String, u32> = Map::default();
+    for host in hosts.values() {
+        *agg.entry(host.serialnumber.clone()).or_insert(0) += 1;
         *agg.entry("_total".to_string()).or_insert(0) += 1;
     }
 
